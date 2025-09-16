@@ -45,7 +45,7 @@ jobs:
 
     - name: Login to Cloud Foundry
       run: |
-        cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o "${{ secrets.SG_ORG }}" -s "${{ secrets.SPACE }}"
+        cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o "${{ secrets.SG_ORG }}" -s "${{ secrets.SG_SPACE }}"
 
     - name: Get all applications
       id: get-sg-apps
@@ -123,7 +123,7 @@ jobs:
 
     - name: Login to Cloud Foundry
       run: |
-        cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o "${{ secrets.US_ORG }}" -s "${{ secrets.SPACE }}"
+        cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o "${{ secrets.US_ORG }}" -s "${{ secrets.US_SPACE }}"
 
     - name: Get all applications
       id: get-us-apps
