@@ -2,7 +2,7 @@ name: 自动保活 SAP
 
 on:
   #schedule:
-  #  - cron: '30 22 * * *'     # actions时间不准，不准确再酌情调整
+  #  - cron: '55 23 * * *'     # actions时间不准，不准确再酌情调整
   workflow_dispatch:  # 允许手动触发
   # 当 Uptime Kuma API 发送 'service-down-alert' 事件时触发此工作流。
   repository_dispatch:
