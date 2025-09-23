@@ -1,0 +1,140 @@
+name: 删除指定区域所有SAP应用
+
+on:
+  workflow_dispatch:  # 允许手动触发
+    inputs:
+      region:
+        description: '选择要删除应用的区域'
+        required: true
+        default: 'SG'
+        type: choice
+        options:
+        - SG
+        - US
+        - ALL
+      confirmation:
+        description: '请输入 "删除" 以确认操作'
+        required: true
+        type: string
+
+jobs:
+  # 任务1: 验证确认短语 (前置任务)
+  validate_confirmation:
+    runs-on: ubuntu-latest
+    name: Validate Confirmation
+    steps:
+      - name: 验证确认短语
+        run: |
+          if [ "${{ github.event.inputs.confirmation }}" != "删除" ]; then
+            echo "错误：必须输入 '删除' 来确认操作"
+            exit 1
+          fi
+          echo "确认短语验证通过"
+
+  # 任务2: 删除新加坡区域的应用
+  delete_sg:
+    needs: validate_confirmation # 依赖于验证任务
+    if: needs.validate_confirmation.result == 'success' && (github.event.inputs.region == 'SG' || github.event.inputs.region == 'ALL')
+    runs-on: ubuntu-latest
+    name: Delete Apps from SG
+
+    steps:
+    - name: Install CF CLI
+      run: |
+        wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key | sudo apt-key add -
+        echo "deb https://packages.cloudfoundry.org/debian stable main" | sudo tee /etc/apt/sources.list.d/cloudfoundry-cli.list
+        sudo apt-get update
+        sudo apt-get install -y cf8-cli
+
+    - name: SG | Login to Cloud Foundry
+      run: |
+        cf login -a "https://api.cf.ap21.hana.ondemand.com" -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o "${{ secrets.SG_ORG }}" -s "${{ secrets.SG_SPACE }}"
+
+    - name: SG | 获取所有应用
+      id: get-apps
+      run: |
+        apps=$(cf apps | awk 'NR>3 {print $1}' | grep -v '^$')
+        echo "发现的应用:"
+        echo "$apps"
+        if [ -z "$apps" ]; then
+          echo "在区域 SG 中未找到任何应用"
+          echo "has_apps=false" >> $GITHUB_OUTPUT
+        else
+          echo "has_apps=true" >> $GITHUB_OUTPUT
+          echo "apps<<EOF" >> $GITHUB_OUTPUT
+          echo "$apps" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        fi
+
+    - name: SG | 删除所有应用
+      if: steps.get-apps.outputs.has_apps == 'true'
+      run: |
+        apps="${{ steps.get-apps.outputs.apps }}"
+        echo "正在删除区域 SG 中的应用:"
+        echo "$apps"
+        for app in $apps; do
+          echo "正在删除应用: $app"
+          cf delete -f -r "$app"
+          echo "应用 $app 删除成功"
+          echo "----------------------------------------"
+          sleep 10
+        done
+
+    - name: SG | 验证应用已删除
+      run: |
+        echo "区域 SG 中剩余的应用:"
+        cf apps
+
+  # 任务3: 删除美国区域的应用
+  delete_us:
+    needs: validate_confirmation # 依赖于验证任务
+    if: needs.validate_confirmation.result == 'success' && (github.event.inputs.region == 'US' || github.event.inputs.region == 'ALL')
+    runs-on: ubuntu-latest
+    name: Delete Apps from US
+
+    steps:
+    - name: Install CF CLI
+      run: |
+        wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key | sudo apt-key add -
+        echo "deb https://packages.cloudfoundry.org/debian stable main" | sudo tee /etc/apt/sources.list.d/cloudfoundry-cli.list
+        sudo apt-get update
+        sudo apt-get install -y cf8-cli
+
+    - name: US | Login to Cloud Foundry
+      run: |
+        cf login -a "https://api.cf.us10-001.hana.ondemand.com" -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o "${{ secrets.US_ORG }}" -s "${{ secrets.US_SPACE }}"
+
+    - name: US | 获取所有应用
+      id: get-apps
+      run: |
+        apps=$(cf apps | awk 'NR>3 {print $1}' | grep -v '^$')
+        echo "发现的应用:"
+        echo "$apps"
+        if [ -z "$apps" ]; then
+          echo "在区域 US 中未找到任何应用"
+          echo "has_apps=false" >> $GITHUB_OUTPUT
+        else
+          echo "has_apps=true" >> $GITHUB_OUTPUT
+          echo "apps<<EOF" >> $GITHUB_OUTPUT
+          echo "$apps" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        fi
+
+    - name: US | 删除所有应用
+      if: steps.get-apps.outputs.has_apps == 'true'
+      run: |
+        apps="${{ steps.get-apps.outputs.apps }}"
+        echo "正在删除区域 US 中的应用:"
+        echo "$apps"
+        for app in $apps; do
+          echo "正在删除应用: $app"
+          cf delete -f -r "$app"
+          echo "应用 $app 删除成功"
+          echo "----------------------------------------"
+          sleep 10
+        done
+        
+    - name: US | 验证应用已删除
+      run: |
+        echo "区域 US 中剩余的应用:"
+        cf apps
