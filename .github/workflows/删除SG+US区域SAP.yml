@@ -1,4 +1,4 @@
-name: 删除指定区域所有SAP应用
+name: 删除SG+US区域所有SAP应用
 
 on:
   workflow_dispatch:  # 允许手动触发
