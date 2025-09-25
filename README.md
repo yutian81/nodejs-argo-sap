@@ -2,7 +2,7 @@
 
 ## 概述
 
-本项目是自动部署argo节点到SAP Cloud Foundry平台，自动保活的方案
+本项目是自动部署argo隧道或直连节点到SAP Cloud Foundry平台，试用版提供完美的自动保活的方案,并适配企业版部署，企业版无需保活
 - 视频教程：https://www.youtube.com/watch?v=uHvtVaeVCvE
 - telegram交流反馈群组：https://t.me/eooceu
 
@@ -21,7 +21,6 @@
 - `PASSWORD`: Cloud Foundry账户密码(必填)
 
 4. **设置Docker容器环境变量(也是在secrets里设置)**
-   - DOCKER_IMAGE(使用的docker镜像),默认使用argo隧道，直连镜像可以使用`ghcr.io/eooce/goxhttp:latest`或`ghcr.io/eooce/ws:latest`
    - 使用固定隧道token部署，请在cloudflare里设置端口为8001
    - 设置基础环境变量：
      - UUID(节点uuid),如果开启了哪吒v1,部署完一个之后一定要修改UUID,否则agnet会被覆盖
@@ -34,15 +33,16 @@
      - NEZHA_KEY(v1的NZ_CLIENT_SECRET或v0的agent密钥)
      - CFIP(优选域名或优选ip),使用直连镜像时没有此变量
      - CFPORT(优选域名或优选ip对应端口),使用直连镜像时没有此变量
+     - DOCKER_IMAGE(使用的docker镜像),默认使用argo隧道CDN
 
 6. **开始部署**
 * 试用版第二区域和企业版创建区域后,请一定要创建一个空间,名称随意,否则无法运行
 * 在GitHub仓库的Actions页面找到"自动部署SAP"工作流
 * 点击"Run workflow"按钮
 * 根据需要选择或填写以下参数：
-   - environment: 选择部署环境（production/staging）默认即可
+   - type: 选择部署类型(Argo隧道CDN/ws直连/xhttp直连)默认Argo隧道
    - region: 选择部署区域（SG(free)和US(free)为试用版,其他为企业版，请选择和开设的平台对应,aws,gcp,azure）
-   - app_name: （可选）指定应用名称,留空随机生成
+   - app_name: (可选)指定应用名称,留空随机生成
 * 点击绿色的"Run workflow"按钮开始部署
 
 6. **获取节点信息**
