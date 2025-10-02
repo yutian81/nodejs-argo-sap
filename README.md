@@ -28,6 +28,7 @@
      - ARGO_AUTH(固定隧道json或token,未设置将使用临时隧道),使用直连镜像时没有此变量
      - SUB_PATH(订阅token,未设置默认是sub)
    - 可选环境变量
+     - ARGO_PORT(自定义argo隧道端口,不设置默认为8001)
      - NEZHA_SERVER(v1形式: nezha.xxx.com:8008  v0形式：nezha.xxx.com)
      - NEZHA_PORT(V1哪吒没有这个)
      - NEZHA_KEY(v1的NZ_CLIENT_SECRET或v0的agent密钥)
