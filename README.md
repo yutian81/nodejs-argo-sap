@@ -2,13 +2,13 @@
 
 ## 概述
 
-本项目是自动部署argo隧道或直连节点到SAP Cloud Foundry平台，试用版提供完美的自动保活的方案,并适配企业版部署，企业版无需保活
+本项目是自动部署argo隧道或直连节点到SAP Cloud平台，试用版提供完美的自动保活的方案,并适配企业版部署，企业版无需保活
 - 视频教程：https://www.youtube.com/watch?v=uHvtVaeVCvE
 - telegram交流反馈群组：https://t.me/eooceu
 
 ### 前置要求
 * GitHub 账户：需要有一个 GitHub 账户来创建仓库和设置工作流
-* SAP Cloud Foundry 账户：需要有 SAP Cloud Foundry 的有效账户,点此注册：https://www.sap.com
+* SAP Cloud 账户：需要有 SAP Cloud 有效账户,点此注册：https://www.sap.com
 
 ## 部署步骤
 
@@ -38,7 +38,7 @@
 
 6. **开始部署**
 * 试用版第二区域和企业版创建区域后,请一定要创建一个空间,名称随意,否则无法运行
-* 在GitHub仓库的Actions页面找到"自动部署SAP"工作流
+* 在GitHub仓库的Actions页面找到"自动部署代理到SAP"工作流
 * 点击"Run workflow"按钮
 * 根据需要选择或填写以下参数：
    - type: 选择部署类型(Argo隧道CDN/ws直连/xhttp直连)默认Argo隧道
