@@ -1,0 +1,281 @@
+name: 自动部署Uptime-Kuma
+
+on:
+  workflow_dispatch:  # 只允许手动触发
+    inputs:
+      region:
+        description: '选择部署区域'
+        required: true
+        default: 'US(free)'
+        type: choice
+        options:
+          #  免费区域
+          - SG(free)  # azure新加披
+          - US(free)  # aws美国    
+          # AWS 区域
+          - AWS-AU(Sydney)
+          - AWS-BR(São Paulo)
+          - AWS-KR(Seoul)
+          - AWS-CA(Montreal)
+          - AWS-US(VA)
+          - AWS-US(OR)
+          - AWS-EU(Frankfurt)
+          - AWS-JP(Tokyo)
+          - AWS-SG(Singapore)
+          # GCP 区域
+          - GCP-AU(Sydney)
+          - GCP-BR(São Paulo)
+          - GCP-US(IA)
+          - GCP-EU(Frankfurt)
+          - GCP-JP(Osaka)
+          - GCP-JP(Tokyo)
+          - GCP-IL(Tel Aviv)
+          - GCP-IN(Mumbai)
+          - GCP-KSA(Dammam)
+          # Azure 区域
+          - Azure-AU(Sydney)
+          - Azure-BR(São Paulo)
+          - Azure-CA(Montreal)
+          - Azure-US(VA)
+          - Azure-US(WA)
+          - Azure-EU(Netherlands)
+          - Azure-JP(Tokyo)
+          - Azure-SG(Singapore)
+          # SAP Neo 区域
+          - Neo-UAE(Dubai)
+          - Neo-KSA(Riyadh)
+      app_name:
+        description: '应用名称（可选，留空则自动生成）'
+        required: false
+        default: ''
+
+env:
+  # Uptime Kuma 镜像和资源配置
+  DOCKER_IMAGE: ${{ secrets.DOCKER_IMAGE || 'louislam/uptime-kuma:1' }}
+  MEMORY: ${{ secrets.MEMORY || '512M' }}
+  DISK: ${{ secrets.DISK || '512M' }}
+  APP_PORT: ${{ secrets.APP_PORT || '3001' }}
+
+jobs:
+  deploy-app:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install CF CLI
+      run: |
+        wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key | sudo apt-key add -
+        echo "deb https://packages.cloudfoundry.org/debian stable main" | sudo tee /etc/apt/sources.list.d/cloudfoundry-cli.list
+        sudo apt-get update
+        sudo apt-get install -y cf8-cli
+
+    - name: Determine CF API endpoint and app name
+      run: |
+        # 设置API端点和生成随机字符串
+        RANDOM_STR=$(head /dev/urandom | tr -dc 'a-z' | head -c 6)
+        
+        # 默认应用名前缀改为 uptime-kuma
+        APP_PREFIX="uptime-kuma"
+
+        case "${{ github.event.inputs.region }}" in
+          # 免费区域
+          "SG(free)")
+            echo "CF_API=https://api.cf.ap21.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-freesg$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "US(free)")
+            echo "CF_API=https://api.cf.us10-001.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-freeus$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          # AWS 区域
+          "AWS-AU(Sydney)")
+            echo "CF_API=https://api.cf.ap10.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-awsau$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "AWS-BR(São Paulo)")
+            echo "CF_API=https://api.cf.br10.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-awsbr$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "AWS-KR(Seoul)")
+            echo "CF_API=https://api.cf.ap12.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-awskr$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "AWS-CA(Montreal)")
+            echo "CF_API=https://api.cf.ca10.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-awsca$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "AWS-US(VA)")
+            echo "CF_API=https://api.cf.us10-001.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-awsusva$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "AWS-US(OR)")
+            echo "CF_API=https://api.cf.us11.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-awsusor$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "AWS-EU(Frankfurt)")
+            echo "CF_API=https://api.cf.eu10-005.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-waseu$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "AWS-JP(Tokyo)")
+            echo "CF_API=https://api.cf.jp10.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-awsjp$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "AWS-SG(Singapore)")
+            echo "CF_API=https://api.cf.ap11.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-awssg$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          
+          # GCP 区域
+          "GCP-AU(Sydney)")
+            echo "CF_API=https://api.cf.ap30.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-gcpau$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "GCP-BR(São Paulo)")
+            echo "CF_API=https://api.cf.br30.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-gcpbr$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "GCP-US(IA)")
+            echo "CF_API=https://api.cf.us30.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-gcpus$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "GCP-EU(Frankfurt)")
+            echo "CF_API=https://api.cf.eu30.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-gcpeu$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "GCP-JP(Osaka)")
+            echo "CF_API=https://api.cf.jp30.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-gcpjpo$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "GCP-JP(Tokyo)")
+            echo "CF_API=https://api.cf.jp31.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-gcpjpt$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "GCP-IL(Tel Aviv)")
+            echo "CF_API=https://api.cf.il30.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-gcpil$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "GCP-IN(Mumbai)")
+            echo "CF_API=https://api.cf.in30.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-gcpin$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "GCP-KSA(Dammam)")
+            echo "CF_API=https://api.cf.sa31.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-gcpsa$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          
+          # Azure 区域
+          "Azure-AU(Sydney)")
+            echo "CF_API=https://api.cf.ap20.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-azau$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "Azure-BR(São Paulo)")
+            echo "CF_API=https://api.cf.br20.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-azbr$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "Azure-CA(Montreal)")
+            echo "CF_API=https://api.cf.ca20.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-azca$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "Azure-US(VA)")
+            echo "CF_API=https://api.cf.us21.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-azva$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "Azure-US(WA)")
+            echo "CF_API=https://api.cf.us20.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-azwa$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "Azure-EU(Netherlands)")
+            echo "CF_API=https://api.cf.eu20-001.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-azeu$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "Azure-JP(Tokyo)")
+            echo "CF_API=https://api.cf.jp20.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-azjp$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "Azure-SG(Singapore)")
+            echo "CF_API=https://api.cf.ap21.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-azsg$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          
+          # SAP Neo 区域
+          "Neo-UAE(Dubai)")
+            echo "CF_API=https://api.cf.neo-ae1.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-neouae$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+          "Neo-KSA(Riyadh)")
+            echo "CF_API=https://api.cf.neo-sa1.hana.ondemand.com" >> $GITHUB_ENV
+            echo "APP_NAME=$APP_PREFIX-neoksa$RANDOM_STR" >> $GITHUB_ENV
+            ;;
+        esac
+        
+        # 如果用户提供了应用名称，则使用用户提供的
+        if [ -n "${{ github.event.inputs.app_name }}" ]; then
+          echo "APP_NAME=${{ github.event.inputs.app_name }}" >> $GITHUB_ENV
+        fi
+
+        # 输出项目基础信息
+        # ⚠️ 移除了冗余的 DOCKER_IMAGE 写入行
+        echo "使用API端点: $CF_API"
+        echo "应用名称: $APP_NAME"
+        echo "部署镜像: ${{ env.DOCKER_IMAGE }}"
+        echo "应用端口: ${{ env.APP_PORT }}"
+
+    - name: Login to Cloud Foundry
+      run: |
+        cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}"
+
+        # 获取组织列表
+        ORG=$(cf orgs | sed -n '4p')
+        echo "Selected org: $ORG"
+        echo "ORG=$ORG" >> $GITHUB_ENV
+
+        # 获取空间列表
+        SPACE=$(cf spaces | sed -n '4p')
+        echo "Selected space: $SPACE"
+        echo "SPACE=$SPACE" >> $GITHUB_ENV
+
+        # 使用获取的组织和空间重新登录
+        cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o "$ORG" -s "$SPACE"
+
+    - name: Deploy Uptime Kuma application
+      run: |
+        # 使用 -p 选项指定应用端口
+        if cf push ${{ env.APP_NAME }} --docker-image ${{ env.DOCKER_IMAGE }} -m ${{ env.MEMORY }} -k ${{ env.DISK }} -p ${{ env.APP_PORT }} --health-check-type port; then
+          echo "Deployment successful"
+        else
+          cf delete ${{ env.APP_NAME }} -f -r
+          echo "伙计,没资源了,部署失败,请明天早上8:20至9:00再尝试部署,已清理失败部署残留"
+          exit 1
+        fi
+        
+    - name: Verify deployment
+      run: |
+        STATUS=$(cf app ${{ env.APP_NAME }} | grep "requested state:" | awk '{print $3}')
+        if [ "$STATUS" = "started" ]; then
+          echo "✅ Uptime Kuma 启动成功"
+        else
+          echo "❌ 应用启动失败，当前状态: $STATUS"
+          echo "查看应用日志:"
+          cf logs ${{ env.APP_NAME }} --recent
+          exit 1
+        fi
+        
+    - name: 详细部署信息
+      run: |
+        echo "🚀 部署完成！详细信息如下："
+        echo "应用名称(App Name): ${{ env.APP_NAME }}"
+        echo "部署镜像(Image): ${{ env.DOCKER_IMAGE }}"
+        echo "区域(Region): ${{ github.event.inputs.region }}"
+        echo "组织(ORG): ${{ env.ORG }}"
+        echo "空间(SPACE): ${{ env.SPACE }}"
+
+        # 获取应用路由
+        ROUTE=$(cf app ${{ env.APP_NAME }} | grep "routes:" | awk '{print $2}')
+        if [ -n "$ROUTE" ]; then
+          echo "Uptime Kuma URL: https://$ROUTE"
+          echo "注意：在Cloud Foundry环境中，应用重启或实例迁移可能导致数据丢失，因为它不支持Docker卷挂载的持久化存储。如需持久化，请考虑使用绑定的服务。"
+        else
+          echo "⚠️ 未找到应用路由，请检查部署状态。"
+        fi
