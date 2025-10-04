@@ -1,167 +1,167 @@
 name: 自动部署Uptime-Kuma到SAP
 
 on:
-  workflow_dispatch:  # 只允许手动触发
-    inputs:
-      region:
-        description: '选择部署区域'
-        required: true
-        default: 'US(free)'
-        type: choice
-        options:
-          #  免费区域
-          - SG(free)  # azure新加披
-          - US(free)  # aws美国    
-          # AWS 区域
-          - AWS-AU(Sydney)
-          - AWS-BR(São Paulo)
-          - AWS-KR(Seoul)
-          - AWS-CA(Montreal)
-          - AWS-US(VA)
-          - AWS-US(OR)
-          - AWS-EU(Frankfurt)
-          - AWS-JP(Tokyo)
-          - AWS-SG(Singapore)
-          # GCP 区域
-          - GCP-AU(Sydney)
-          - GCP-BR(São Paulo)
-          - GCP-US(IA)
-          - GCP-EU(Frankfurt)
-          - GCP-JP(Osaka)
-          - GCP-JP(Tokyo)
-          - GCP-IL(Tel Aviv)
-          - GCP-IN(Mumbai)
-          - GCP-KSA(Dammam)
-          # Azure 区域
-          - Azure-AU(Sydney)
-          - Azure-BR(São Paulo)
-          - Azure-CA(Montreal)
-          - Azure-US(VA)
-          - Azure-US(WA)
-          - Azure-EU(Netherlands)
-          - Azure-JP(Tokyo)
-          - Azure-SG(Singapore)
-          # SAP Neo 区域
-          - Neo-UAE(Dubai)
-          - Neo-KSA(Riyadh)
-      app_name:
-        description: '应用名称（可选，留空则自动生成）'
-        required: false
-        default: ''
+  workflow_dispatch:  # 只允许手动触发
+    inputs:
+      region:
+        description: '选择部署区域'
+        required: true
+        default: 'US(free)'
+        type: choice
+        options:
+          # 免费区域
+          - SG(free)  # azure新加披
+          - US(free)  # aws美国
+          # AWS 区域
+          - AWS-AU(Sydney)
+          - AWS-BR(São Paulo)
+          - AWS-KR(Seoul)
+          - AWS-CA(Montreal)
+          - AWS-US(VA)
+          - AWS-US(OR)
+          - AWS-EU(Frankfurt)
+          - AWS-JP(Tokyo)
+          - AWS-SG(Singapore)
+          # GCP 区域
+          - GCP-AU(Sydney)
+          - GCP-BR(São Paulo)
+          - GCP-US(IA)
+          - GCP-EU(Frankfurt)
+          - GCP-JP(Osaka)
+          - GCP-JP(Tokyo)
+          - GCP-IL(Tel Aviv)
+          - GCP-IN(Mumbai)
+          - GCP-KSA(Dammam)
+          # Azure 区域
+          - Azure-AU(Sydney)
+          - Azure-BR(São Paulo)
+          - Azure-CA(Montreal)
+          - Azure-US(VA)
+          - Azure-US(WA)
+          - Azure-EU(Netherlands)
+          - Azure-JP(Tokyo)
+          - Azure-SG(Singapore)
+          # SAP Neo 区域
+          - Neo-UAE(Dubai)
+          - Neo-KSA(Riyadh)
+      app_name:
+        description: '应用名称（可选，留空则自动生成）'
+        required: false
+        default: ''
 
 env:
-  # Uptime Kuma 镜像和资源配置
-  DOCKER_IMAGE: ${{ secrets.DOCKER_IMAGE || 'louislam/uptime-kuma:1' }}
-  MEMORY: ${{ secrets.MEMORY || '512M' }}
-  DISK: ${{ secrets.DISK || '512M' }}
-  APP_PORT: ${{ secrets.APP_PORT || '3001' }}
+  # Uptime Kuma 镜像和资源配置
+  DOCKER_IMAGE: ${{ secrets.DOCKER_IMAGE || 'louislam/uptime-kuma:1' }}
+  MEMORY: ${{ secrets.MEMORY || '512M' }}
+  DISK: ${{ secrets.DISK || '512M' }}
+  APP_PORT: ${{ secrets.APP_PORT || '3001' }}
 
 jobs:
-  deploy-app:
-    runs-on: ubuntu-latest
+  deploy-app:
+    runs-on: ubuntu-latest
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Install jq
       run: sudo apt-get install -y jq
 
-    - name: Install CF CLI
-      run: |
-        wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key | sudo apt-key add -
-        echo "deb https://packages.cloudfoundry.org/debian stable main" | sudo tee /etc/apt/sources.list.d/cloudfoundry-cli.list
-        sudo apt-get update
-        sudo apt-get install -y cf8-cli
+    - name: Install CF CLI
+      run: |
+        wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key | sudo apt-key add -
+        echo "deb https://packages.cloudfoundry.org/debian stable main" | sudo tee /etc/apt/sources.list.d/cloudfoundry-cli.list
+        sudo apt-get update
+        sudo apt-get install -y cf8-cli
 
-    - name: Determine CF API endpoint and app name
-      run: |
-        # 设置应用前缀和随机字符串
-        RANDOM_STR=$(head /dev/urandom | tr -dc 'a-z' | head -c 6)
-        SELECTED_REGION="${{ github.event.inputs.region }}"
+    - name: Determine CF API endpoint and app name
+      run: |
+        # 设置应用前缀和随机字符串
+        RANDOM_STR=$(head /dev/urandom | tr -dc 'a-z' | head -c 6)
+        SELECTED_REGION="${{ github.event.inputs.region }}"
         APP_PREFIX="uptime-kuma"
-        
-        # 使用 jq 解析 JSON 获取 API 和前缀
-        CF_API=$(jq -r --arg region "$SELECTED_REGION" '.[$region].api' sap-region.json)
-        REGION_PREFIX=$(jq -r --arg region "$SELECTED_REGION" '.[$region].prefix' sap-region.json)
+
+        # 使用 jq 解析 JSON 获取 API 和前缀
+        CF_API=$(jq -r --arg region "$SELECTED_REGION" '.[$region].api' sap-region.json)
+        REGION_PREFIX=$(jq -r --arg region "$SELECTED_REGION" '.[$region].prefix' sap-region.json)
 
         if [ -z "$CF_API" ] || [ -z "$REGION_PREFIX" ]; then
-            echo "错误: 无法在 cf-region-map.json 中找到区域 $SELECTED_REGION 的映射信息。"
+            echo "错误: 无法在 sap-region.json 中找到区域 $SELECTED_REGION 的映射信息。"
             exit 1
         fi
 
-        # 生成或使用 APP_NAME
-        GENERATED_APP_NAME="$APP_PREFIX-$REGION_PREFIX$RANDOM_STR"
-        # 如果用户提供了应用名称，则使用用户提供的
-        if [ -n "${{ github.event.inputs.app_name }}" ]; then
-          APP_NAME="${{ github.event.inputs.app_name }}"
-        else
-          APP_NAME="$GENERATED_APP_NAME"
-        fi
+        # 生成或使用 APP_NAME
+        GENERATED_APP_NAME="$APP_PREFIX-$REGION_PREFIX$RANDOM_STR"
+        # 如果用户提供了应用名称，则使用用户提供的
+        if [ -n "${{ github.event.inputs.app_name }}" ]; then
+          APP_NAME="${{ github.event.inputs.app_name }}"
+        else
+          APP_NAME="$GENERATED_APP_NAME"
+        fi
 
-        echo "CF_API=$CF_API" >> $GITHUB_ENV
+        echo "CF_API=$CF_API" >> $GITHUB_ENV
         echo "APP_NAME=$APP_NAME" >> $GITHUB_ENV
 
-        # 输出项目基础信息
-        echo "使用API端点: $CF_API"
-        echo "应用名称: $APP_NAME"
-        echo "部署镜像: ${{ env.DOCKER_IMAGE }}"
-        echo "应用端口: ${{ env.APP_PORT }}"
+        # 输出项目基础信息
+        echo "使用API端点: $CF_API"
+        echo "应用名称: $APP_NAME"
+        echo "部署镜像: ${{ env.DOCKER_IMAGE }}"
+        echo "应用端口: ${{ env.APP_PORT }}"
 
-    - name: Login to Cloud Foundry
-      run: |
-        cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}"
+    - name: Login to Cloud Foundry
+      run: |
+        cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}"
 
-        # 获取组织列表
-        ORG=$(cf orgs | sed -n '4p')
-        echo "Selected org: $ORG"
-        echo "ORG=$ORG" >> $GITHUB_ENV
+        # 获取组织列表
+        ORG=$(cf orgs | sed -n '4p')
+        echo "Selected org: $ORG"
+        echo "ORG=$ORG" >> $GITHUB_ENV
 
-        # 获取空间列表
-        SPACE=$(cf spaces | sed -n '4p')
-        echo "Selected space: $SPACE"
-        echo "SPACE=$SPACE" >> $GITHUB_ENV
+        # 获取空间列表
+        SPACE=$(cf spaces | sed -n '4p')
+        echo "Selected space: $SPACE"
+        echo "SPACE=$SPACE" >> $GITHUB_ENV
 
-        # 使用获取的组织和空间重新登录
-        cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o "$ORG" -s "$SPACE"
+        # 使用获取的组织和空间重新登录
+        cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o "$ORG" -s "$SPACE"
 
-    - name: Deploy Uptime Kuma application
-      run: |
-        # 使用 -p 选项指定应用端口
-        if cf push ${{ env.APP_NAME }} --docker-image ${{ env.DOCKER_IMAGE }} -m ${{ env.MEMORY }} -k ${{ env.DISK }} -p ${{ env.APP_PORT }} --health-check-type port; then
-          echo "Deployment successful"
-        else
-          cf delete ${{ env.APP_NAME }} -f -r
-          echo "伙计,没资源了,部署失败,请明天早上8:20至9:00再尝试部署,已清理失败部署残留"
-          exit 1
-        fi
-        
-    - name: Verify deployment
-      run: |
-        STATUS=$(cf app ${{ env.APP_NAME }} | grep "requested state:" | awk '{print $3}')
-        if [ "$STATUS" = "started" ]; then
-          echo "✅ Uptime Kuma 启动成功"
-        else
-          echo "❌ 应用启动失败，当前状态: $STATUS"
-          echo "查看应用日志:"
-          cf logs ${{ env.APP_NAME }} --recent
-          exit 1
-        fi
-        
-    - name: 详细部署信息
-      run: |
-        echo "🚀 部署完成！详细信息如下："
-        echo "应用名称(App Name): ${{ env.APP_NAME }}"
-        echo "部署镜像(Image): ${{ env.DOCKER_IMAGE }}"
-        echo "区域(Region): ${{ github.event.inputs.region }}"
-        echo "组织(ORG): ${{ env.ORG }}"
-        echo "空间(SPACE): ${{ env.SPACE }}"
+    - name: Deploy Uptime Kuma application
+      run: |
+        # 使用 -p 选项指定应用端口
+        if cf push ${{ env.APP_NAME }} --docker-image ${{ env.DOCKER_IMAGE }} -m ${{ env.MEMORY }} -k ${{ env.DISK }} -p ${{ env.APP_PORT }} --health-check-type port; then
+          echo "Deployment successful"
+        else
+          cf delete ${{ env.APP_NAME }} -f -r
+          echo "伙计,没资源了,部署失败,请明天早上8:20至9:00再尝试部署,已清理失败部署残留"
+          exit 1
+        fi
 
-        # 获取应用路由
-        ROUTE=$(cf app ${{ env.APP_NAME }} | grep "routes:" | awk '{print $2}')
-        if [ -n "$ROUTE" ]; then
-          echo "Uptime Kuma URL: https://$ROUTE"
-          echo "注意：在Cloud Foundry环境中，应用重启或实例迁移可能导致数据丢失，因为它不支持Docker卷挂载的持久化存储。如需持久化，请考虑使用绑定的服务。"
-        else
-          echo "⚠️ 未找到应用路由，请检查部署状态。"
-        fi
+    - name: Verify deployment
+      run: |
+        STATUS=$(cf app ${{ env.APP_NAME }} | grep "requested state:" | awk '{print $3}')
+        if [ "$STATUS" = "started" ]; then
+          echo "✅ Uptime Kuma 启动成功"
+        else
+          echo "❌ 应用启动失败，当前状态: $STATUS"
+          echo "查看应用日志:"
+          cf logs ${{ env.APP_NAME }} --recent
+          exit 1
+        fi
+
+    - name: 详细部署信息
+      run: |
+        echo "🚀 部署完成！详细信息如下："
+        echo "应用名称(App Name): ${{ env.APP_NAME }}"
+        echo "部署镜像(Image): ${{ env.DOCKER_IMAGE }}"
+        echo "区域(Region): ${{ github.event.inputs.region }}"
+        echo "组织(ORG): ${{ env.ORG }}"
+        echo "空间(SPACE): ${{ env.SPACE }}"
+
+        # 获取应用路由
+        ROUTE=$(cf app ${{ env.APP_NAME }} | grep "routes:" | awk '{print $2}')
+        if [ -n "$ROUTE" ]; then
+          echo "Uptime Kuma URL: https://$ROUTE"
+          echo "注意：在Cloud Foundry环境中，应用重启或实例迁移可能导致数据丢失，因为它不支持Docker卷挂载的持久化存储。如需持久化，请考虑使用绑定的服务。"
+        else
+          echo "⚠️ 未找到应用路由，请检查部署状态。"
+        fi
