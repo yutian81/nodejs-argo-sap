@@ -115,17 +115,17 @@ jobs:
     - name: SG | 验证应用部署状态和基本信息
       run: |
         # 强制应用重启/重构，以应用环境变量
-        cf restage ${{ env.APP_NAME }}
-
-        # 检查应用状态
-        STATUS=$(cf app ${{ env.APP_NAME }} | grep "requested state:" | awk '{print $3}')
-        if [ "$STATUS" != "started" ]; then
-          echo "❌ 应用启动失败，当前状态: $STATUS"
-          echo "查看应用日志:"
-          cf logs ${{ env.APP_NAME }} --recent
-          exit 1
-        fi
-
+        cf restage ${{ env.APP_NAME }}
+        
+        # 检查应用状态
+        STATUS=$(cf app ${{ env.APP_NAME }} | grep "requested state:" | awk '{print $3}')
+        if [ "$STATUS" != "started" ]; then
+          echo "❌ 应用启动失败，当前状态: $STATUS"
+          echo "查看应用日志:"
+          cf logs ${{ env.APP_NAME }} --recent
+          exit 1
+        fi
+        
         echo "🚀 部署完成！详细信息如下："
         echo "区域(Region): ${{ github.event.inputs.region }}"
         echo "区域API: ${{ env.CF_API }}"
@@ -136,13 +136,13 @@ jobs:
         echo "内存容量: ${{ env.MEMORY }}"
         echo "磁盘容量: ${{ env.DISK }}"
 
-        # 获取应用路由
-        ROUTE=$(cf app ${{ env.APP_NAME }} | grep "routes:" | awk '{print $2}')
-        if [ -n "$ROUTE" ]; then
-          echo "应用 URL (APP_URL): https://$ROUTE"
-        else
-          echo "⚠️ 未找到应用路由，请检查部署状态。"
-        fi
+        # 获取应用路由
+        ROUTE=$(cf app ${{ env.APP_NAME }} | grep "routes:" | awk '{print $2}')
+        if [ -n "$ROUTE" ]; then
+          echo "应用 URL (APP_URL): https://$ROUTE"
+        else
+          echo "⚠️ 未找到应用路由，请检查部署状态。"
+        fi
 
   # 美国区域的部署任务
   deploy_us:
@@ -228,17 +228,17 @@ jobs:
     - name: US | 验证应用部署状态和基本信息
       run: |
         # 强制应用重启/重构，以应用环境变量
-        cf restage ${{ env.APP_NAME }}
-
-        # 检查应用状态
-        STATUS=$(cf app ${{ env.APP_NAME }} | grep "requested state:" | awk '{print $3}')
-        if [ "$STATUS" != "started" ]; then
-          echo "❌ 应用启动失败，当前状态: $STATUS"
-          echo "查看应用日志:"
-          cf logs ${{ env.APP_NAME }} --recent
-          exit 1
-        fi
-     
+        cf restage ${{ env.APP_NAME }}
+        
+        # 检查应用状态
+        STATUS=$(cf app ${{ env.APP_NAME }} | grep "requested state:" | awk '{print $3}')
+        if [ "$STATUS" != "started" ]; then
+          echo "❌ 应用启动失败，当前状态: $STATUS"
+          echo "查看应用日志:"
+          cf logs ${{ env.APP_NAME }} --recent
+          exit 1
+        fi
+        
         echo "🚀 部署完成！详细信息如下："
         echo "区域(Region): ${{ github.event.inputs.region }}"
         echo "区域API: ${{ env.CF_API }}"
