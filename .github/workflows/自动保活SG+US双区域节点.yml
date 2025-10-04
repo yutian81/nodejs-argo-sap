@@ -1,4 +1,4 @@
-name: 自动保活 SAP
+name: 自动保活SG+US双区域节点
 
 on:
   #schedule:
