@@ -1,0 +1,122 @@
+{
+  "SG(free)": {
+    "api": "https://api.cf.ap21.hana.ondemand.com",
+    "prefix": "freesg"
+  },
+  "US(free)": {
+    "api": "https://api.cf.us10-001.hana.ondemand.com",
+    "prefix": "freeus"
+  },
+  "AWS-AU(Sydney)": {
+    "api": "https://api.cf.ap10.hana.ondemand.com",
+    "prefix": "awsau"
+  },
+  "AWS-BR(São Paulo)": {
+    "api": "https://api.cf.br10.hana.ondemand.com",
+    "prefix": "awsbr"
+  },
+  "AWS-KR(Seoul)": {
+    "api": "https://api.cf.ap12.hana.ondemand.com",
+    "prefix": "awskr"
+  },
+  "AWS-CA(Montreal)": {
+    "api": "https://api.cf.ca10.hana.ondemand.com",
+    "prefix": "awsca"
+  },
+  "AWS-US(VA)": {
+    "api": "https://api.cf.us10-001.hana.ondemand.com",
+    "prefix": "awsusva"
+  },
+  "AWS-US(OR)": {
+    "api": "https://api.cf.us11.hana.ondemand.com",
+    "prefix": "awsusor"
+  },
+  "AWS-EU(Frankfurt)": {
+    "api": "https://api.cf.eu10-005.hana.ondemand.com",
+    "prefix": "waseu"
+  },
+  "AWS-JP(Tokyo)": {
+    "api": "https://api.cf.jp10.hana.ondemand.com",
+    "prefix": "awsjp"
+  },
+  "AWS-SG(Singapore)": {
+    "api": "https://api.cf.ap11.hana.ondemand.com",
+    "prefix": "awssg"
+  },
+  "GCP-AU(Sydney)": {
+    "api": "https://api.cf.ap30.hana.ondemand.com",
+    "prefix": "gcpau"
+  },
+  "GCP-BR(São Paulo)": {
+    "api": "https://api.cf.br30.hana.ondemand.com",
+    "prefix": "gcpbr"
+  },
+  "GCP-US(IA)": {
+    "api": "https://api.cf.us30.hana.ondemand.com",
+    "prefix": "gcpus"
+  },
+  "GCP-EU(Frankfurt)": {
+    "api": "https://api.cf.eu30.hana.ondemand.com",
+    "prefix": "gcpeu"
+  },
+  "GCP-JP(Osaka)": {
+    "api": "https://api.cf.jp30.hana.ondemand.com",
+    "prefix": "gcpjpo"
+  },
+  "GCP-JP(Tokyo)": {
+    "api": "https://api.cf.jp31.hana.ondemand.com",
+    "prefix": "gcpjpt"
+  },
+  "GCP-IL(Tel Aviv)": {
+    "api": "https://api.cf.il30.hana.ondemand.com",
+    "prefix": "gcpil"
+  },
+  "GCP-IN(Mumbai)": {
+    "api": "https://api.cf.in30.hana.ondemand.com",
+    "prefix": "gcpin"
+  },
+  "GCP-KSA(Dammam)": {
+    "api": "https://api.cf.sa31.hana.ondemand.com",
+    "prefix": "gcpsa"
+  },
+  "Azure-AU(Sydney)": {
+    "api": "https://api.cf.ap20.hana.ondemand.com",
+    "prefix": "azau"
+  },
+  "Azure-BR(São Paulo)": {
+    "api": "https://api.cf.br20.hana.ondemand.com",
+    "prefix": "azbr"
+  },
+  "Azure-CA(Montreal)": {
+    "api": "https://api.cf.ca20.hana.ondemand.com",
+    "prefix": "azca"
+  },
+  "Azure-US(VA)": {
+    "api": "https://api.cf.us21.hana.ondemand.com",
+    "prefix": "azva"
+  },
+  "Azure-US(WA)": {
+    "api": "https://api.cf.us20.hana.ondemand.com",
+    "prefix": "azwa"
+  },
+  "Azure-EU(Netherlands)": {
+    "api": "https://api.cf.eu20-001.hana.ondemand.com",
+    "prefix": "azeu"
+  },
+  "Azure-JP(Tokyo)": {
+    "api": "https://api.cf.jp20.hana.ondemand.com",
+    "prefix": "azjp"
+  },
+  "Azure-SG(Singapore)": {
+    "api": "https://api.cf.ap21.hana.ondemand.com",
+    "prefix": "azsg"
+  },
+  "Neo-UAE(Dubai)": {
+    "api": "https://api.cf.neo-ae1.hana.ondemand.com",
+    "prefix": "neouae"
+  },
+  "Neo-KSA(Riyadh)": {
+    "api": "https://api.cf.neo-sa1.hana.ondemand.com",
+    "prefix": "neoksa"
+  }
+}
