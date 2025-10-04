@@ -71,6 +71,9 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Install jq
+      run: sudo apt-get install -y jq
+
     - name: Install CF CLI
       run: |
         wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key | sudo apt-key add -
@@ -80,160 +83,37 @@ jobs:
 
     - name: Determine CF API endpoint and app name
       run: |
-        # 设置API端点和生成随机字符串
-        RANDOM_STR=$(head /dev/urandom | tr -dc 'a-z' | head -c 6)
+        # 设置应用前缀和随机字符串
+        RANDOM_STR=$(head /dev/urandom | tr -dc 'a-z' | head -c 6)
+        SELECTED_REGION="${{ github.event.inputs.region }}"
+        APP_PREFIX="uptime-kuma"
         
-        case "${{ github.event.inputs.region }}" in
-          # 免费区域
-          "SG(free)")
-            echo "CF_API=https://api.cf.ap21.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-freesg$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "US(free)")
-            echo "CF_API=https://api.cf.us10-001.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-freeus$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          # AWS 区域
-          "AWS-AU(Sydney)")
-            echo "CF_API=https://api.cf.ap10.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-awsau$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "AWS-BR(São Paulo)")
-            echo "CF_API=https://api.cf.br10.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-awsbr$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "AWS-KR(Seoul)")
-            echo "CF_API=https://api.cf.ap12.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-awskr$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "AWS-CA(Montreal)")
-            echo "CF_API=https://api.cf.ca10.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-awsca$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "AWS-US(VA)")
-            echo "CF_API=https://api.cf.us10-001.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-awsusva$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "AWS-US(OR)")
-            echo "CF_API=https://api.cf.us11.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-awsusor$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "AWS-EU(Frankfurt)")
-            echo "CF_API=https://api.cf.eu10-005.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-waseu$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "AWS-JP(Tokyo)")
-            echo "CF_API=https://api.cf.jp10.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-awsjp$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "AWS-SG(Singapore)")
-            echo "CF_API=https://api.cf.ap11.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-awssg$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          
-          # GCP 区域
-          "GCP-AU(Sydney)")
-            echo "CF_API=https://api.cf.ap30.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-gcpau$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "GCP-BR(São Paulo)")
-            echo "CF_API=https://api.cf.br30.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-gcpbr$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "GCP-US(IA)")
-            echo "CF_API=https://api.cf.us30.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-gcpus$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "GCP-EU(Frankfurt)")
-            echo "CF_API=https://api.cf.eu30.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-gcpeu$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "GCP-JP(Osaka)")
-            echo "CF_API=https://api.cf.jp30.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-gcpjpo$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "GCP-JP(Tokyo)")
-            echo "CF_API=https://api.cf.jp31.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-gcpjpt$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "GCP-IL(Tel Aviv)")
-            echo "CF_API=https://api.cf.il30.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-gcpil$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "GCP-IN(Mumbai)")
-            echo "CF_API=https://api.cf.in30.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-gcpin$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "GCP-KSA(Dammam)")
-            echo "CF_API=https://api.cf.sa31.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-gcpsa$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          
-          # Azure 区域
-          "Azure-AU(Sydney)")
-            echo "CF_API=https://api.cf.ap20.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-azau$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "Azure-BR(São Paulo)")
-            echo "CF_API=https://api.cf.br20.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-azbr$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "Azure-CA(Montreal)")
-            echo "CF_API=https://api.cf.ca20.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-azca$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "Azure-US(VA)")
-            echo "CF_API=https://api.cf.us21.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-azva$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "Azure-US(WA)")
-            echo "CF_API=https://api.cf.us20.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-azwa$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "Azure-EU(Netherlands)")
-            echo "CF_API=https://api.cf.eu20-001.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-azeu$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "Azure-JP(Tokyo)")
-            echo "CF_API=https://api.cf.jp20.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-azjp$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "Azure-SG(Singapore)")
-            echo "CF_API=https://api.cf.ap21.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-azsg$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          
-          # SAP Neo 区域
-          "Neo-UAE(Dubai)")
-            echo "CF_API=https://api.cf.neo-ae1.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-neouae$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-          "Neo-KSA(Riyadh)")
-            echo "CF_API=https://api.cf.neo-sa1.hana.ondemand.com" >> $GITHUB_ENV
-            echo "APP_NAME=moontv-neoksa$RANDOM_STR" >> $GITHUB_ENV
-            ;;
-        esac
-        
-        # 如果用户提供了应用名称，则使用用户提供的
-        if [ -n "${{ github.event.inputs.app_name }}" ]; then
-          echo "APP_NAME=${{ github.event.inputs.app_name }}" >> $GITHUB_ENV
+        # 使用 jq 解析 JSON 获取 API 和前缀
+        CF_API=$(jq -r --arg region "$SELECTED_REGION" '.[$region].api' cf-region-map.json)
+        REGION_PREFIX=$(jq -r --arg region "$SELECTED_REGION" '.[$region].prefix' cf-region-map.json)
+
+        if [ -z "$CF_API" ] || [ -z "$REGION_PREFIX" ]; then
+            echo "错误: 无法在 cf-region-map.json 中找到区域 $SELECTED_REGION 的映射信息。"
+            exit 1
         fi
 
-        # 如果自定义了docker镜像变量则使用定义的，否则按照选择的
-        if [[ -n "${{ secrets.DOCKER_IMAGE }}" ]]; then
-          echo "DOCKER_IMAGE=${{ secrets.DOCKER_IMAGE }}" >> $GITHUB_ENV
-        else
-          if [ "${{ github.event.inputs.type }}" = "Lunatv" ]; then
-            echo "DOCKER_IMAGE=ghcr.io/moontechlab/lunatv:latest" >> $GITHUB_ENV
-          elif [ "${{ github.event.inputs.type }}" = "KatelyaTV" ]; then
-            echo "DOCKER_IMAGE=ghcr.io/katelya77/katelyatv:latest" >> $GITHUB_ENV
-          else 
-            echo "DOCKER_IMAGE=ghcr.io/eooce/moontv:latest" >> $GITHUB_ENV
-          fi
-        fi
-        echo "使用API端点: $CF_API"
-        echo "应用名称: $APP_NAME"
-        echo "部署类型: ${{ env.DOCKER_IMAGE }}"
+        # 生成或使用 APP_NAME
+        GENERATED_APP_NAME="$APP_PREFIX-$REGION_PREFIX$RANDOM_STR"
+        # 如果用户提供了应用名称，则使用用户提供的
+        if [ -n "${{ github.event.inputs.app_name }}" ]; then
+          APP_NAME="${{ github.event.inputs.app_name }}"
+        else
+          APP_NAME="$GENERATED_APP_NAME"
+        fi
+        
+        echo "CF_API=$CF_API" >> $GITHUB_ENV
+        echo "APP_NAME=$APP_NAME" >> $GITHUB_ENV
+
+        # 输出项目基础信息
+        echo "使用API端点: $CF_API"
+        echo "应用名称: $APP_NAME"
+        echo "部署镜像: ${{ env.DOCKER_IMAGE }}"
+        echo "应用端口: ${{ env.APP_PORT }}"
 
     - name: Login to Cloud Foundry
       run: |
