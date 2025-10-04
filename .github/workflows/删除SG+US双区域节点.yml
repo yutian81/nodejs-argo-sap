@@ -1,0 +1,210 @@
+name: 删除SG+US双区域节点
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: '选择要删除应用的区域'
+        required: true
+        default: 'SG'
+        type: choice
+        options:
+        - SG
+        - US
+        - ALL
+      confirmation:
+        description: '请输入 "删除" 以确认操作'
+        required: true
+        type: string
+
+jobs:
+  # 任务1: 验证确认短语 (前置任务)
+  validate_confirmation:
+    runs-on: ubuntu-latest
+    name: Validate Confirmation
+    steps:
+      - name: 验证确认短语
+        run: |
+          if [ "${{ github.event.inputs.confirmation }}" != "删除" ]; then
+            echo "错误：必须输入 '删除' 来确认操作"
+            exit 1
+          fi
+          echo "确认短语验证通过"
+
+  # 任务2: 删除新加坡区域的应用
+  delete_sg:
+    needs: validate_confirmation # 依赖于验证任务
+    if: needs.validate_confirmation.result == 'success' && (github.event.inputs.region == 'SG' || github.event.inputs.region == 'ALL')
+    runs-on: ubuntu-latest
+    name: Delete Apps from SG
+
+    steps:
+    - name: SG | 安装 CF CLI
+      run: |
+        wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key | sudo apt-key add -
+        echo "deb https://packages.cloudfoundry.org/debian stable main" | sudo tee /etc/apt/sources.list.d/cloudfoundry-cli.list
+        sudo apt-get update
+        sudo apt-get install -y cf8-cli
+
+    - name: SG | 登录到 SAP Cloud Foundry
+      run: |
+        cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}"
+
+        # 获取组织列表
+        ORG=$(cf orgs | sed -n '4p')
+        echo "获取到的组织: $ORG"
+        if [ -z "$ORG" ]; then
+          echo "错误：未找到任何组织"
+          exit 1
+        fi
+        echo "ORG=$ORG" >> $GITHUB_ENV
+
+        # 获取空间列表
+        SPACE=$(cf spaces | sed -n '4p')
+        echo "获取到的空间: $SPACE"
+        if [ -z "$SPACE" ]; then
+          echo "错误：未找到任何空间"
+          exit 1
+        fi
+        echo "SPACE=$SPACE" >> $GITHUB_ENV        
+
+        # 使用获取的组织和空间重新登录
+        cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o "${{ env.ORG }}" -s "${{ env.SPACE }}"
+
+    - name: SG | 获取所有应用
+      id: get-apps
+      run: |
+        # 获取所有应用名称
+        apps=$(cf apps | tail -n +4 | awk '{print $1}' | grep -v '^$')
+        echo "发现的应用:"
+        echo "$apps"
+        
+        # 检查是否有应用
+        if [ -z "$apps" ]; then
+          echo "在区域 ${{ github.event.inputs.region }} 中未找到任何应用"
+          echo "has_apps=false" >> $GITHUB_OUTPUT
+          exit 0
+        else
+          echo "has_apps=true" >> $GITHUB_OUTPUT
+        fi
+        
+        # 直接输出到 GITHUB_OUTPUT（多行字符串）
+        delimiter="EOF_$(date +%s)"
+        echo "apps<<$delimiter" >> $GITHUB_OUTPUT
+        echo "$apps" >> $GITHUB_OUTPUT
+        echo "$delimiter" >> $GITHUB_OUTPUT
+
+    - name: SG | 删除所有应用
+      if: steps.get-apps.outputs.has_apps == 'true'
+      run: |
+        # 从上一步获取应用列表
+        apps="${{ steps.get-apps.outputs.apps }}"
+        echo "正在删除区域 ${{ github.event.inputs.region }} 中的应用:"
+        echo "$apps"
+        
+        # 删除每个应用
+        for app in $apps; do
+          echo "正在删除应用: $app"
+          cf delete -f -r "$app"  # -f 强制删除，不需要确认；-r 同时删除关联的路由
+          if [ $? -eq 0 ]; then
+            echo "应用 $app 删除成功"
+          else
+            echo "应用 $app 删除失败，继续下一个应用"
+          fi
+          echo "----------------------------------------"
+          sleep 5
+        done
+
+    - name: SG | 验证应用已删除
+      run: |
+        echo "区域 ${{ github.event.inputs.region }} 中剩余的应用:"
+        cf apps || echo "获取应用列表失败，可能已经没有应用"
+
+  # 任务3: 删除美国区域的应用
+  delete_us:
+    needs: validate_confirmation # 依赖于验证任务
+    if: needs.validate_confirmation.result == 'success' && (github.event.inputs.region == 'US' || github.event.inputs.region == 'ALL')
+    runs-on: ubuntu-latest
+    name: Delete Apps from US
+
+    steps:
+    - name: US | 安装 CF CLI
+      run: |
+        wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key | sudo apt-key add -
+        echo "deb https://packages.cloudfoundry.org/debian stable main" | sudo tee /etc/apt/sources.list.d/cloudfoundry-cli.list
+        sudo apt-get update
+        sudo apt-get install -y cf8-cli
+
+    - name: US | 登录到 SAP Cloud Foundry
+      run: |
+        cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}"
+
+        # 获取组织列表
+        ORG=$(cf orgs | sed -n '4p')
+        echo "获取到的组织: $ORG"
+        if [ -z "$ORG" ]; then
+          echo "错误：未找到任何组织"
+          exit 1
+        fi
+        echo "ORG=$ORG" >> $GITHUB_ENV
+
+        # 获取空间列表
+        SPACE=$(cf spaces | sed -n '4p')
+        echo "获取到的空间: $SPACE"
+        if [ -z "$SPACE" ]; then
+          echo "错误：未找到任何空间"
+          exit 1
+        fi
+        echo "SPACE=$SPACE" >> $GITHUB_ENV        
+
+        # 使用获取的组织和空间重新登录
+        cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o "${{ env.ORG }}" -s "${{ env.SPACE }}"
+
+    - name: US | 获取所有应用
+      id: get-apps
+      run: |
+        # 获取所有应用名称
+        apps=$(cf apps | tail -n +4 | awk '{print $1}' | grep -v '^$')
+        echo "发现的应用:"
+        echo "$apps"
+        
+        # 检查是否有应用
+        if [ -z "$apps" ]; then
+          echo "在区域 ${{ github.event.inputs.region }} 中未找到任何应用"
+          echo "has_apps=false" >> $GITHUB_OUTPUT
+          exit 0
+        else
+          echo "has_apps=true" >> $GITHUB_OUTPUT
+        fi
+        
+        # 直接输出到 GITHUB_OUTPUT（多行字符串）
+        delimiter="EOF_$(date +%s)"
+        echo "apps<<$delimiter" >> $GITHUB_OUTPUT
+        echo "$apps" >> $GITHUB_OUTPUT
+        echo "$delimiter" >> $GITHUB_OUTPUT
+
+    - name: US | 删除所有应用
+      if: steps.get-apps.outputs.has_apps == 'true'
+      run: |
+        # 从上一步获取应用列表
+        apps="${{ steps.get-apps.outputs.apps }}"
+        echo "正在删除区域 ${{ github.event.inputs.region }} 中的应用:"
+        echo "$apps"
+        
+        # 删除每个应用
+        for app in $apps; do
+          echo "正在删除应用: $app"
+          cf delete -f -r "$app"  # -f 强制删除，不需要确认；-r 同时删除关联的路由
+          if [ $? -eq 0 ]; then
+            echo "应用 $app 删除成功"
+          else
+            echo "应用 $app 删除失败，继续下一个应用"
+          fi
+          echo "----------------------------------------"
+          sleep 5
+        done
+
+    - name: US | 验证应用已删除
+      run: |
+        echo "区域 ${{ github.event.inputs.region }} 中剩余的应用:"
+        cf apps || echo "获取应用列表失败，可能已经没有应用"
