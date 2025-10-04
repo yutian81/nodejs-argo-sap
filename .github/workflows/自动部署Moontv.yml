@@ -89,8 +89,8 @@ jobs:
         APP_PREFIX="uptime-kuma"
         
         # 使用 jq 解析 JSON 获取 API 和前缀
-        CF_API=$(jq -r --arg region "$SELECTED_REGION" '.[$region].api' cf-region-map.json)
-        REGION_PREFIX=$(jq -r --arg region "$SELECTED_REGION" '.[$region].prefix' cf-region-map.json)
+        CF_API=$(jq -r --arg region "$SELECTED_REGION" '.[$region].api' sap-region.json)
+        REGION_PREFIX=$(jq -r --arg region "$SELECTED_REGION" '.[$region].prefix' sap-region.json)
 
         if [ -z "$CF_API" ] || [ -z "$REGION_PREFIX" ]; then
             echo "错误: 无法在 cf-region-map.json 中找到区域 $SELECTED_REGION 的映射信息。"
