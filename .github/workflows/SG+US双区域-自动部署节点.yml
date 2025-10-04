@@ -1,4 +1,4 @@
-name: 自动部署SG+US双区域节点
+name: SG+US双区域-自动部署节点
 
 on:
   workflow_dispatch: 
