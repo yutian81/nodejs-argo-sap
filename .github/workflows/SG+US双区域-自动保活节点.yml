@@ -1,17 +1,25 @@
 name: SG+US双区域-自动保活节点
 
 on:
-  #schedule:
-  #  - cron: '58 23 * * *'     # actions时间不准，不准确再酌情调整
   workflow_dispatch:  # 允许手动触发
+    inputs:
+      region:
+        description: '选择部署区域'
+        required: true
+        default: 'SG'
+        type: choice
+        options:
+          - SG  # 新加坡
+          - US  # 美国
+          - ALL # 新加坡+美国
   repository_dispatch:
     types: [service-down-alert]
 
 jobs:
   restart-sg-apps:
+    if: github.event.inputs.region == 'SG' || github.event.inputs.region == 'ALL'
     runs-on: ubuntu-latest
     name: Restart SG Apps
-    if: always()  
     continue-on-error: true
     
     steps:
@@ -101,9 +109,9 @@ jobs:
         cf apps
 
   restart-us-apps:
+    if: github.event.inputs.region == 'US' || github.event.inputs.region == 'ALL'
     runs-on: ubuntu-latest
     name: Restart US Apps
-    if: always()  
     continue-on-error: true
     
     steps:
