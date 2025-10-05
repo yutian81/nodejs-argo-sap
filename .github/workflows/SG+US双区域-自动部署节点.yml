@@ -28,7 +28,7 @@ on:
 env:
   DOCKER_IMAGE: ghcr.io/eooce/nodejs:main
   MEMORY: 256M
-  DISK: 256M
+  DISK: 512M
 
 jobs:
   # 新加坡区域的部署任务
