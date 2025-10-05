@@ -20,7 +20,6 @@ jobs:
     if: github.event.inputs.region == 'SG' || github.event.inputs.region == 'ALL'
     runs-on: ubuntu-latest
     name: Restart SG Apps
-    continue-on-error: true
     
     steps:
     - name: Check Trigger Event
@@ -112,7 +111,6 @@ jobs:
     if: github.event.inputs.region == 'US' || github.event.inputs.region == 'ALL'
     runs-on: ubuntu-latest
     name: Restart US Apps
-    continue-on-error: true
     
     steps:
     - name: Check Trigger Event
