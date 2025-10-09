@@ -268,9 +268,9 @@ add_cron_job() {
 
 # 主函数
 main() {
-install_cf_cli
-add_cron_job
-monitor_urls
+    install_cf_cli
+    add_cron_job
+    monitor_urls
 }
 
 # 执行主函数
