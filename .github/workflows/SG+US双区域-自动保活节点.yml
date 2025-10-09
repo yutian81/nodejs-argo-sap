@@ -16,11 +16,31 @@ on:
     types: [service-down-alert]
 
 jobs:
-  restart-sg-apps:
-    if: github.event.inputs.region == 'SG' || github.event.inputs.region == 'ALL'
-    runs-on: ubuntu-latest
-    name: Restart SG Apps
+  restart-apps-by-region:
+    # 动态构建 matrix，根据输入的 region 决定运行哪些区域的 Job
+    strategy:
+      matrix:
+        include:
+          # 新加坡 (SG) 配置
+          - region_code: SG
+            cf_api: https://api.cf.ap21.hana.ondemand.com
+            
+          # 美国 (US) 配置
+          - region_code: US
+            cf_api: https://api.cf.us10-001.hana.ondemand.com
+            
+      fail-fast: false # 允许一个区域失败时，其他区域继续运行
     
+    # 使用 matrix 变量进行条件判断：
+    # 如果用户选择 ALL，则运行所有 matrix 项；否则，只运行用户输入的区域
+    if: |
+      (github.event.inputs.region == 'ALL') || 
+      (github.event.inputs.region == matrix.region_code) ||
+      (github.event_name == 'repository_dispatch')
+
+    runs-on: ubuntu-latest
+    name: Restart ${{ matrix.region_code }} Apps
+
     steps:
     - name: Check Trigger Event
       run: |
@@ -44,13 +64,15 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y cf8-cli
 
+    - name: Determine CF API endpoint
+      run: |
+        # 直接使用 matrix 变量设置环境变量
+        echo "CF_API=${{ matrix.cf_api }}" >> $GITHUB_ENV
+        echo "使用API端点: ${{ matrix.cf_api }} (区域: ${{ matrix.region_code }})"
+
     - name: Login to Cloud Foundry
       run: |
-        # 设置api端点
-        echo "CF_API=https://api.cf.ap21.hana.ondemand.com" >> $GITHUB_ENV
-        echo "使用API端点: $CF_API (区域: SG)"
-        
-        # 初始登录以获取组织列表
+        # 使用环境变量 CF_API 登录
         cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}"
         
         # 获取组织列表
@@ -67,7 +89,7 @@ jobs:
         cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o "$ORG" -s "$SPACE"
 
     - name: Get stopped applications
-      id: get-sg-apps
+      id: get-apps
       run: |
         # 筛选出状态不是 "started" 的应用名称
         stopped_apps=$(cf apps | awk 'NR>3 && $2 != "started" {print $1}' | grep -v '^$')
@@ -82,14 +104,14 @@ jobs:
     - name: Restart stopped applications
       run: |
         # 从上一步获取需要重启的应用列表
-        apps="${{ steps.get-sg-apps.outputs.apps }}"
+        apps="${{ steps.get-apps.outputs.apps }}"
 
         if [ -z "$apps" ]; then
-          echo "在区域 SG 中未发现任何需要重启的应用 (所有应用均处于 'started' 状态或未找到应用)。"
+          echo "在区域 ${{ matrix.region_code }} 中未发现任何需要重启的应用 (所有应用均处于 'started' 状态或未找到应用)。"
           exit 0
         fi
         
-        echo "正在重启区域 SG 中需要恢复运行的应用:"
+        echo "正在重启区域 ${{ matrix.region_code }} 中需要恢复运行的应用:"
         echo "$apps"
         
         # 重启每个应用
@@ -103,96 +125,5 @@ jobs:
 
     - name: Verify applications status
       run: |
-        echo "区域 SG 中所有应用的最终状态:"
-        cf apps
-
-  restart-us-apps:
-    if: github.event.inputs.region == 'US' || github.event.inputs.region == 'ALL'
-    runs-on: ubuntu-latest
-    name: Restart US Apps
-    
-    steps:
-    - name: Check Trigger Event
-      run: |
-        echo "Workflow triggered by: ${{ github.event_name }}"
-        if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
-          echo "触发事件类型 (Event Type): ${{ github.event.action }}"
-          echo "收到来自 Uptime Kuma 的下线通知，开始执行自动恢复部署流程..."
-        elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-          echo "工作流被手动触发，开始执行部署..."
-        else
-          echo "工作流由计划任务触发，开始执行部署..."
-        fi
-        
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install CF CLI
-      run: |
-        wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key | sudo apt-key add -
-        echo "deb https://packages.cloudfoundry.org/debian stable main" | sudo tee /etc/apt/sources.list.d/cloudfoundry-cli.list
-        sudo apt-get update
-        sudo apt-get install -y cf8-cli
-
-    - name: Login to Cloud Foundry
-      run: |
-        # 设置api端点
-        echo "CF_API=https://api.cf.us10-001.hana.ondemand.com" >> $GITHUB_ENV
-        echo "使用API端点: $CF_API (区域: US)"
-        
-        # 先登录以获取组织列表
-        cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}"
-        
-        # 获取组织列表
-        ORG=$(cf orgs | sed -n '4p')
-        echo "Selected org: $ORG"
-        echo "ORG=$ORG" >> $GITHUB_ENV
-
-        # 获取空间列表
-        SPACE=$(cf spaces | sed -n '4p')
-        echo "Selected space: $SPACE"
-        echo "SPACE=$SPACE" >> $GITHUB_ENV
-
-        # 使用获取的组织和空间重新登录
-        cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o "$ORG" -s "$SPACE"
-
-    - name: Get stopped applications
-      id: get-us-apps
-      run: |
-        # 筛选出状态不是 "started" 的应用名称（$2 != "started"）
-        stopped_apps=$(cf apps | awk 'NR>3 && $2 != "started" {print $1}' | grep -v '^$')
-        
-        echo "发现需要重启的应用 (状态非 'started' 的应用):"
-        echo "$stopped_apps"
-
-        # 直接输出到 GITHUB_OUTPUT（多行字符串）
-        echo "apps<<EOF" >> $GITHUB_OUTPUT
-        echo "$stopped_apps" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
-
-    - name: Restart stopped applications
-      run: |
-        # 从上一步获取需要重启的应用列表
-        apps="${{ steps.get-us-apps.outputs.apps }}"
-
-        if [ -z "$apps" ]; then
-          echo "在区域 US 中未发现任何需要重启的应用 (所有应用均处于 'started' 状态或未找到应用)。"
-          exit 0
-        fi
-        
-        echo "正在重启区域 US 中需要恢复运行的应用:"
-        echo "$apps"
-        
-        # 重启每个应用
-        for app in $apps; do
-          echo "正在重启应用: $app"
-          cf restart "$app"
-          echo "应用 $app 重启成功"
-          echo "----------------------------------------"
-          sleep 20  # 每个应用之间等待 20 秒
-        done
-
-    - name: Verify applications status
-      run: |
-        echo "区域 US 中所有应用的最终状态:"
+        echo "区域 ${{ matrix.region_code }} 中所有应用的最终状态:"
         cf apps
