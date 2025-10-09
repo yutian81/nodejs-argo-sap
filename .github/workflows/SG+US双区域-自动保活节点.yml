@@ -82,7 +82,7 @@ jobs:
           echo "Selected space: $SPACE"
           echo "SPACE=$SPACE" >> $GITHUB_ENV
 
-      - name: Get stopped applications (Robust Parsing)
+      - name: Get stopped applications
         id: get-apps
         run: |
           # 重新登录确保会话有效
@@ -99,7 +99,7 @@ jobs:
           if [ -z "$stopped_apps" ]; then
              echo "区域 ${{ matrix.region_code }} 中未发现任何需要重启的应用。"
           else
-             echo "发现需要重启的应用 (状态非 'started' 的应用):"
+             echo "发现需要重启的应用 (状态非 'started'):"
              echo "$stopped_apps"
           fi
 
@@ -115,7 +115,7 @@ jobs:
           apps="${{ steps.get-apps.outputs.apps }}"
 
           if [ -z "$apps" ]; then
-            echo "区域 ${{ matrix.region_code }} 中未发现任何需要重启的应用 (所有应用均处于 'started' 状态)。"
+            echo "区域 ${{ matrix.region_code }} 中未发现任何需要重启的应用 (所有应用均为 'started')。"
             exit 0
           fi
 
