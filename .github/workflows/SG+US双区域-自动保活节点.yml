@@ -82,11 +82,11 @@ jobs:
           echo "Selected space: $SPACE"
           echo "SPACE=$SPACE" >> $GITHUB_ENV
 
-          cf login -a "${{ env.CF_API }}" -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o "$ORG" -s "$SPACE"
-
       - name: Get stopped applications
         id: get-apps
         run: |
+          cf login -a "${{ env.CF_API }}" -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o ${{ env.ORG }} -s ${{ env.SPACE }}
+          
           stopped_apps=$(cf apps | awk 'NR>3 && $2 != "started" {print $1}' | grep -v '^$')
           echo "发现需要重启的应用 (状态非 'started' 的应用):"
           echo "$stopped_apps"
