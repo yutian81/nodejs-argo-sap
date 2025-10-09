@@ -33,7 +33,7 @@ jobs:
         else
           echo "工作流由计划任务触发，开始执行部署..."
         fi
-          
+        
     - name: Checkout code
       uses: actions/checkout@v4
 
@@ -44,14 +44,13 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y cf8-cli
 
-    - name: Determine CF API endpoint
-      run: |
-        echo "CF_API=https://api.cf.ap21.hana.ondemand.com" >> $GITHUB_ENV
-        echo "使用API端点: $CF_API (区域: SG)"
-
     - name: Login to Cloud Foundry
       run: |
-        # 先登录以获取组织列表
+        # 设置api端点
+        echo "CF_API=https://api.cf.ap21.hana.ondemand.com" >> $GITHUB_ENV
+        echo "使用API端点: $CF_API (区域: SG)"
+        
+        # 初始登录以获取组织列表
         cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}"
         
         # 获取组织列表
@@ -67,30 +66,30 @@ jobs:
         # 使用获取的组织和空间重新登录
         cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o "$ORG" -s "$SPACE"
 
-    - name: Get all applications
+    - name: Get stopped applications
       id: get-sg-apps
       run: |
-        # 获取所有应用名称（跳过前 3 行提示和表头）
-        apps=$(cf apps | awk 'NR>3 {print $1}' | grep -v '^$')
-        echo "发现的应用:"
-        echo "$apps"
+        # 筛选出状态不是 "started" 的应用名称
+        stopped_apps=$(cf apps | awk 'NR>3 && $2 != "started" {print $1}' | grep -v '^$')
+        echo "发现需要重启的应用 (状态非 'started' 的应用):"
+        echo "$stopped_apps"
 
         # 直接输出到 GITHUB_OUTPUT（多行字符串）
         echo "apps<<EOF" >> $GITHUB_OUTPUT
-        echo "$apps" >> $GITHUB_OUTPUT
+        echo "$stopped_apps" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
 
-    - name: Restart all applications
+    - name: Restart stopped applications
       run: |
-        # 从上一步获取应用列表
+        # 从上一步获取需要重启的应用列表
         apps="${{ steps.get-sg-apps.outputs.apps }}"
 
         if [ -z "$apps" ]; then
-          echo "在区域 SG 中未找到任何应用"
+          echo "在区域 SG 中未发现任何需要重启的应用 (所有应用均处于 'started' 状态或未找到应用)。"
           exit 0
         fi
         
-        echo "重启区域 SG 中的应用:"
+        echo "正在重启区域 SG 中需要恢复运行的应用:"
         echo "$apps"
         
         # 重启每个应用
@@ -135,13 +134,12 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y cf8-cli
 
-    - name: Determine CF API endpoint
-      run: |
-        echo "CF_API=https://api.cf.us10-001.hana.ondemand.com" >> $GITHUB_ENV
-        echo "使用API端点: $CF_API (区域: US)"
-
     - name: Login to Cloud Foundry
       run: |
+        # 设置api端点
+        echo "CF_API=https://api.cf.us10-001.hana.ondemand.com" >> $GITHUB_ENV
+        echo "使用API端点: $CF_API (区域: US)"
+        
         # 先登录以获取组织列表
         cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}"
         
@@ -158,30 +156,31 @@ jobs:
         # 使用获取的组织和空间重新登录
         cf login -a ${{ env.CF_API }} -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o "$ORG" -s "$SPACE"
 
-    - name: Get all applications
+    - name: Get stopped applications
       id: get-us-apps
       run: |
-        # 获取所有应用名称（跳过前 3 行提示和表头）
-        apps=$(cf apps | awk 'NR>3 {print $1}' | grep -v '^$')
-        echo "发现的应用:"
-        echo "$apps"
+        # 筛选出状态不是 "started" 的应用名称（$2 != "started"）
+        stopped_apps=$(cf apps | awk 'NR>3 && $2 != "started" {print $1}' | grep -v '^$')
         
+        echo "发现需要重启的应用 (状态非 'started' 的应用):"
+        echo "$stopped_apps"
+
         # 直接输出到 GITHUB_OUTPUT（多行字符串）
         echo "apps<<EOF" >> $GITHUB_OUTPUT
-        echo "$apps" >> $GITHUB_OUTPUT
+        echo "$stopped_apps" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
 
-    - name: Restart all applications
+    - name: Restart stopped applications
       run: |
-        # 从上一步获取应用列表
+        # 从上一步获取需要重启的应用列表
         apps="${{ steps.get-us-apps.outputs.apps }}"
 
         if [ -z "$apps" ]; then
-          echo "在区域 US 中未找到任何应用"
+          echo "在区域 US 中未发现任何需要重启的应用 (所有应用均处于 'started' 状态或未找到应用)。"
           exit 0
         fi
         
-        echo "重启区域 US 中的应用:"
+        echo "正在重启区域 US 中需要恢复运行的应用:"
         echo "$apps"
         
         # 重启每个应用
