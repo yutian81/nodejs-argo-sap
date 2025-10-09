@@ -1,7 +1,7 @@
 name: SG+US双区域-自动保活节点
 
 on:
-  workflow_dispatch:  # 手动触发
+  workflow_dispatch:
     inputs:
       region:
         description: '选择部署区域'
@@ -9,10 +9,9 @@ on:
         default: 'SG'
         type: choice
         options:
-          - SG    # 新加坡
-          - US    # 美国
-          - ALL   # 新加坡+美国
-
+          - SG
+          - US
+          - ALL
   repository_dispatch:
     types: [service-down-alert]
 
@@ -30,12 +29,20 @@ jobs:
           - region_code: US
             cf_api: https://api.cf.us10-001.hana.ondemand.com
 
-    if: |
-      (github.event_name == 'repository_dispatch') ||
-      (github.event.inputs.region == 'ALL') ||
-      (github.event.inputs.region == matrix.region_code)
-
     steps:
+      - name: Skip job if region doesn't match
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            SELECTED="${{ github.event.inputs.region }}"
+          else
+            SELECTED="ALL"
+          fi
+
+          if [[ "$SELECTED" != "ALL" && "$SELECTED" != "${{ matrix.region_code }}" ]]; then
+            echo "跳过区域 ${{ matrix.region_code }} 的 Job"
+            exit 0
+          fi
+
       - name: Check Trigger Event
         run: |
           echo "Workflow triggered by: ${{ github.event_name }}"
@@ -65,31 +72,25 @@ jobs:
 
       - name: Login to Cloud Foundry
         run: |
-          # 登录以获取组织列表
           cf login -a "${{ env.CF_API }}" -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}"
           
-          # 获取组织列表
           ORG=$(cf orgs | sed -n '4p')
           echo "Selected org: $ORG"
           echo "ORG=$ORG" >> $GITHUB_ENV
 
-          # 获取空间列表
           SPACE=$(cf spaces | sed -n '4p')
           echo "Selected space: $SPACE"
           echo "SPACE=$SPACE" >> $GITHUB_ENV
 
-          # 使用获取的组织和空间重新登录
           cf login -a "${{ env.CF_API }}" -u "${{ secrets.EMAIL }}" -p "${{ secrets.PASSWORD }}" -o "$ORG" -s "$SPACE"
 
       - name: Get stopped applications
         id: get-apps
         run: |
-          # 筛选出状态不是 "started" 的应用名称
           stopped_apps=$(cf apps | awk 'NR>3 && $2 != "started" {print $1}' | grep -v '^$')
           echo "发现需要重启的应用 (状态非 'started' 的应用):"
           echo "$stopped_apps"
 
-          # 将多行字符串输出到 GITHUB_OUTPUT
           {
             echo "apps<<EOF"
             echo "$stopped_apps"
