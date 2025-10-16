@@ -26,8 +26,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: 设置 Shell 脚本执行权限
-      # 路径正确：./rebuild_cf_.sh
-      run: chmod +x ./rebuild_cf_.sh 
+      run: chmod +x rebuild_cf_.sh 
 
     - name: 执行 SG 区域环境管理脚本
       env:
@@ -61,8 +60,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: 设置 Shell 脚本执行权限
-      # 路径正确：./rebuild_cf_.sh
-      run: chmod +x ./rebuild_cf_.sh
+      run: chmod +x rebuild_cf_.sh
       
     - name: 执行 US 区域环境管理脚本
       env:
