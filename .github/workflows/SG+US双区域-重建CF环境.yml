@@ -42,7 +42,8 @@ jobs:
 
         # 安装 BTP CLI
         echo "正在下载并安装 BTP CLI..."
-        BTP_CLI_URL="https://tools.hana.ondemand.com/additional/btp-cli-linux-amd64-2.90.2.tar.gz"
+        BTP_CLI_FILENAME="btp-cli-linux-amd64-2.90.2.tar.gz"
+        BTP_CLI_URL="https://tools.hana.ondemand.com/additional/$BTP_CLI_FILENAME"
         DOWNLOAD_PATH="/tmp/$BTP_CLI_FILENAME"
         curl -L -o "$DOWNLOAD_PATH" "$BTP_CLI_URL"
 
@@ -185,7 +186,8 @@ jobs:
 
         # 安装 BTP CLI
         echo "正在下载并安装 BTP CLI..."
-        BTP_CLI_URL="https://tools.hana.ondemand.com/additional/btp-cli-linux-amd64-2.90.2.tar.gz"
+        BTP_CLI_FILENAME="btp-cli-linux-amd64-2.90.2.tar.gz"
+        BTP_CLI_URL="https://tools.hana.ondemand.com/additional/$BTP_CLI_FILENAME"
         DOWNLOAD_PATH="/tmp/$BTP_CLI_FILENAME"
         curl -L -o "$DOWNLOAD_PATH" "$BTP_CLI_URL"
 
