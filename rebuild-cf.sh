@@ -99,15 +99,28 @@ rebuild_cf_environment() {
     btp target --subaccount "$BTP_ID" || { echo "❌ BTP 目标子账户失败"; exit 1; }
 
     echo "3. ⚠️ 正在删除 Cloud Foundry 环境实例 (Org: $CF_ORG)..."
-    # 使用 || true 确保删除失败（例如，实例不存在）不会导致脚本退出
-    btp delete accounts/environment-instance --subaccount "$BTP_ID" --environment CloudFoundry --name "$CF_ORG" --confirm || true
+    CF_INSTANCE_ID=$(
+        btp list accounts/environment-instance --subaccount "$BTP_ID" --environment CloudFoundry --output json 2>/dev/null | \
+        jq -r '.environmentInstances[] | select(.instance_name == "'"$CF_ORG"'") | .id'
+    )
+
+    if [ -n "$CF_INSTANCE_ID" ]; then
+        echo "   找到 CF 实例 ID: $CF_INSTANCE_ID。正在删除..."
+        btp delete accounts/environment-instance "$CF_INSTANCE_ID" --subaccount "$BTP_ID" --confirm || true
+        echo "   CF 实例删除命令已发送。"
+    else
+        echo "   未找到名称为 $CF_ORG 的 Cloud Foundry 实例，跳过删除。"
+    fi
     
     echo "4. 等待 60 秒，等待环境实例删除完成..."
     sleep 60
     
     echo "5. 正在重新创建 Cloud Foundry 环境实例 (Org: $CF_ORG)..."
-    # 使用 --async 避免阻塞，但由于后续要 sleep 120，所以此处省略
     btp create accounts/environment-instance --subaccount "$BTP_ID" --environment CloudFoundry --service plan --plan trial --parameters "{\"instance_name\":\"$CF_ORG\"}" || { echo "❌ CF 环境实例创建请求失败"; exit 1; }
+    if [ $? -ne 0 ]; then
+        echo "❌ CF 环境实例创建请求失败 (权限或参数错误)。请检查 BTP 权限和配额。"
+        exit 1
+    fi
 
     echo "6. 等待 120 秒，等待环境实例创建完成并变为 OK 状态..."
     sleep 120
