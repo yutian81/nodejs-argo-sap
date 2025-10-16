@@ -26,7 +26,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: 设置 Shell 脚本执行权限
-      run: chmod +x rebuild_cf.sh 
+      run: chmod +x ./rebuild-cf.sh 
 
     - name: 执行 SG 区域环境管理脚本
       env:
@@ -39,7 +39,7 @@ jobs:
         PASSWORD: ${{ secrets.PASSWORD }}
       run: |
         # 脚本调用和参数传递正确
-        ./rebuild_cf.sh \
+        ./rebuild-cf.sh \
           "SG" \
           "CF_SPACE_SG" \
           "CF_ORG_SG" \
@@ -60,7 +60,7 @@ jobs:
       uses: actions/checkout@v4
       
     - name: 设置 Shell 脚本执行权限
-      run: chmod +x rebuild_cf.sh
+      run: chmod +x ./rebuild-cf.sh
       
     - name: 执行 US 区域环境管理脚本
       env:
@@ -73,7 +73,7 @@ jobs:
         PASSWORD: ${{ secrets.PASSWORD }}
       run: |
         # 脚本调用和参数传递正确
-        ./rebuild_cf.sh \
+        ./rebuild-cf.sh \
           "US" \
           "CF_SPACE_US" \
           "CF_ORG_US" \
