@@ -91,8 +91,9 @@ jobs:
         rebuild_cf_environment() {
             echo "🚨 触发 Cloud Foundry 环境重建流程 (Org: $CF_ORG, Region: $REGION)..."
 
+            # BTP CLI login and target
             echo "使用 BTP CLI 登录全局账户..."
-            btp login --url "$BTP_GLOBAL_API" -u "$EMAIL" -p "$PASSWORD"
+            btp login --url "$BTP_GLOBAL_API" --user "$EMAIL" --password "$PASSWORD"
             
             echo "目标到子账户 $BTP_ID..."
             btp target --subaccount "$BTP_ID"
@@ -102,7 +103,7 @@ jobs:
             
             echo "等待 60 秒，等待环境实例删除完成..."
             sleep 60
-
+            
             echo "正在重新创建 Cloud Foundry 环境实例 (Org: $CF_ORG)..."
             btp create accounts/environment-instance --subaccount "$BTP_ID" --environment CloudFoundry --service plan --plan trial --parameters "{\"instance_name\":\"$CF_ORG\"}"
 
@@ -113,7 +114,7 @@ jobs:
             
             echo "重新 CF 登录并目标到新创建的 Org ($CF_ORG)..."
             cf login -a "$CF_API" -u "$EMAIL" -p "$PASSWORD" -o "$CF_ORG"
-            
+
             echo "正在创建空间 $CF_SPACE..."
             if cf create-space "$CF_SPACE"; then
                 echo "✅ ${REGION} Cloud Foundry 环境实例和空间 $CF_SPACE 成功创建。"
@@ -238,20 +239,17 @@ jobs:
 
             # BTP CLI login and target
             echo "使用 BTP CLI 登录全局账户..."
-            btp login --url "$BTP_GLOBAL_API" -u "$EMAIL" -p "$PASSWORD"
+            btp login --url "$BTP_GLOBAL_API" --user "$EMAIL" --password "$PASSWORD"
             
             echo "目标到子账户 $BTP_ID..."
             btp target --subaccount "$BTP_ID"
 
-            # 禁用/删除 Cloud Foundry 环境实例 (即 Org)
             echo "⚠️ 正在删除 Cloud Foundry 环境实例 (Org: $CF_ORG)..."
-            # 使用 || true 确保即使删除失败（例如，实例不存在）也不会中断工作流
             btp delete accounts/environment-instance --subaccount "$BTP_ID" --environment CloudFoundry --name "$CF_ORG" --confirm || true
             
             echo "等待 60 秒，等待环境实例删除完成..."
             sleep 60
             
-            # 重新创建/启用 Cloud Foundry 环境实例
             echo "正在重新创建 Cloud Foundry 环境实例 (Org: $CF_ORG)..."
             btp create accounts/environment-instance --subaccount "$BTP_ID" --environment CloudFoundry --service plan --plan trial --parameters "{\"instance_name\":\"$CF_ORG\"}"
 
@@ -260,11 +258,9 @@ jobs:
             
             # CF CLI 操作 (创建空间)
             
-            # 重新 CF 登录并目标到新创建的 Org
             echo "重新 CF 登录并目标到新创建的 Org ($CF_ORG)..."
             cf login -a "$CF_API" -u "$EMAIL" -p "$PASSWORD" -o "$CF_ORG"
-            
-            # 创建同名空间
+
             echo "正在创建空间 $CF_SPACE..."
             if cf create-space "$CF_SPACE"; then
                 echo "✅ ${REGION} Cloud Foundry 环境实例和空间 $CF_SPACE 成功创建。"
