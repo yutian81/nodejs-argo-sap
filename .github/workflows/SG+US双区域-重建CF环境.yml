@@ -41,7 +41,7 @@ jobs:
         sudo apt-get install -y cf8-cli
 
         # 安装 BTP CLI
-        BTP_CLI_VERSION="3.0.0" 
+        BTP_CLI_VERSION="2.90.2" 
         BTP_CLI_ARCH="linux-amd64"
         BTP_CLI_URL="https://tools.hana.ondemand.com/additional/btp-cli/$BTP_CLI_VERSION/$BTP_CLI_ARCH/btp-cli.tar.gz"
         
@@ -171,10 +171,10 @@ jobs:
         sudo apt-get install -y cf8-cli
 
         # 安装 BTP CLI
-        BTP_CLI_VERSION="3.0.0" 
+        BTP_CLI_VERSION="2.90.2" 
         BTP_CLI_ARCH="linux-amd64"
-        BTP_CLI_URL="https://tools.hana.ondemand.com/additional/btp-cli/$BTP_CLI_VERSION/$BTP_CLI_ARCH/btp-cli.tar.gz"
-        
+        BTP_CLI_URL="https://tools.hana.ondemand.com/additional/btp-cli-$BTP_CLI_ARCH-$BTP_CLI_VERSION.tar.gz"
+                
         echo "正在下载并安装 BTP CLI..."
         curl -L $BTP_CLI_URL | sudo tar -xz -C /usr/local/bin
         sudo chmod +x /usr/local/bin/btp
