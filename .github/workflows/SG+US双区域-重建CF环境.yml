@@ -1,0 +1,274 @@
+name: SG+US双区域-重建CF环境
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: '选择操作区域'
+        required: true
+        default: 'SG'
+        type: choice
+        options:
+          - SG  # 新加坡
+          - US  # 美国
+          - ALL # 新加坡+美国
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Job 1: SG 区域空间管理 (仅当选择 SG 或 ALL 时运行)
+  # -------------------------------------------------------------------------
+  manage_cf_space_sg:
+    name: 'SG - 检查、重建 CF 环境和创建空间'
+    runs-on: ubuntu-latest
+    environment: production
+    # 运行条件: 如果输入区域是 'SG' 或 'ALL'
+    if: ${{ github.event.inputs.region == 'SG' || github.event.inputs.region == 'ALL' }}
+    
+    steps:
+    - name: 检出仓库代码 (可选)
+      uses: actions/checkout@v4
+      
+    - name: 安装 BTP CLI, CF CLI 和 jq
+      run: |
+        # 安装 jq 用于 JSON 解析
+        sudo apt-get update
+        sudo apt-get install -y jq
+
+        # 安装 CF CLI v8
+        echo "deb https://packages.cloudfoundry.org/debian stable main" | sudo tee /etc/apt/sources.list.d/cloudfoundry-cli.list
+        wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key | sudo apt-key add -
+        sudo apt-get update
+        sudo apt-get install -y cf8-cli
+
+        # 安装 BTP CLI
+        BTP_CLI_VERSION="3.0.0" 
+        BTP_CLI_ARCH="linux-amd64"
+        BTP_CLI_URL="https://tools.hana.ondemand.com/additional/btp-cli/$BTP_CLI_VERSION/$BTP_CLI_ARCH/btp-cli.tar.gz"
+        
+        echo "正在下载并安装 BTP CLI..."
+        curl -L $BTP_CLI_URL | sudo tar -xz -C /usr/local/bin
+        sudo chmod +x /usr/local/bin/btp
+        btp version
+        echo "BTP CLI 安装完成."
+
+    - name: 设置 SG 区域环境变量 (从远程 JSON 解析 CF_API)
+      run: |
+        # 定义远程 JSON URL
+        JSON_URL="https://raw.githubusercontent.com/yutian81/nodejs-argo-sap/main/sap-region.json"
+        REGION_KEY="SG(free)"
+        
+        echo "正在从 $JSON_URL 下载配置并解析 $REGION_KEY 的 CF API..."
+        CF_API=$(curl -sL "$JSON_URL" | jq -r '."'"$REGION_KEY"'".api')
+        
+        if [ -z "$CF_API" ] || [ "$CF_API" == "null" ]; then
+          echo "❌ 错误：无法解析 $REGION_KEY 对应的 CF API。"
+          exit 1
+        fi
+        
+        # 设置环境变量
+        echo "CF_API=$CF_API" >> $GITHUB_ENV
+        echo "CF_SPACE_NAME=${{ secrets.CF_SPACE_NAME_SG }}" >> $GITHUB_ENV
+        echo "CF_ORG_NAME=${{ secrets.CF_ORG_NAME_SG }}" >> $GITHUB_ENV
+        echo "BTP_SUBACCOUNT_ID=${{ secrets.BTP_SUBACCOUNT_ID_SG }}" >> $GITHUB_ENV
+        echo "REGION=SG" >> $GITHUB_ENV
+        
+        echo "当前处理区域: SG"
+        echo "CF API 解析结果: $CF_API"
+
+    - name: 执行空间检查和环境重建逻辑 (SG)
+      run: |
+        # 从环境变量中获取区域特定的变量，通用 Secrets 直接引用
+        CF_API="${{ env.CF_API }}"
+        CF_SPACE_NAME="${{ env.CF_SPACE_NAME }}"
+        SUBACCOUNT_ID="${{ env.BTP_SUBACCOUNT_ID }}"
+        CF_ORG_NAME="${{ env.CF_ORG_NAME }}"
+        BTP_GLOBAL_API="${{ secrets.BTP_GLOBAL_API }}" 
+        BTP_EMAIL="${{ secrets.EMAIL }}"               
+        BTP_PASSWORD="${{ secrets.PASSWORD }}"         
+
+        # 1. CF 登录并目标到组织，准备检查空间
+        echo "使用 CF CLI 登录 CF API ($CF_API) 并目标到 Org ($CF_ORG_NAME)..."
+        # 确保 CF_API 变量已经被设置
+        if [ -z "$CF_API" ]; then
+          echo "CF_API 变量为空，无法登录。请检查前一步骤是否成功获取 API URL。"
+          exit 1
+        fi
+        cf login -a "$CF_API" -u "$BTP_EMAIL" -p "$BTP_PASSWORD" -o "$CF_ORG_NAME"
+
+        # 2. 检查空间是否存在
+        echo "正在检查空间 $CF_SPACE_NAME 是否存在..."
+        cf space $CF_SPACE_NAME > /dev/null 2>&1
+        
+        if [ $? -eq 0 ]; then
+            echo "✅ SG 空间 $CF_SPACE_NAME 已经存在。无需操作。"
+        else
+            echo "❌ SG 空间 $CF_SPACE_NAME 不存在，执行删除/重建 Cloud Foundry 环境实例和空间创建流程。"
+            
+            # --- BTP CLI 操作 (删除/重建 CF 环境实例) ---
+            echo "使用 BTP CLI 登录全局账户 ($BTP_GLOBAL_API)..."
+            btp login --url "$BTP_GLOBAL_API" -u "$BTP_EMAIL" -p "$BTP_PASSWORD"
+            
+            # 目标到子账户
+            echo "目标到子账户 $SUBACCOUNT_ID..."
+            btp target --subaccount "$SUBACCOUNT_ID"
+            
+            # 禁用/删除 Cloud Foundry 环境实例 (即 Org)
+            echo "⚠️ 正在删除 Cloud Foundry 环境实例 (Org: $CF_ORG_NAME)..."
+            btp delete accounts/environment-instance --subaccount "$SUBACCOUNT_ID" --environment CloudFoundry --name "$CF_ORG_NAME" --confirm
+            
+            echo "等待 60 秒，等待环境实例删除完成..."
+            sleep 60
+            
+            # 重新创建/启用 Cloud Foundry 环境实例
+            echo "正在重新创建 Cloud Foundry 环境实例 (Org: $CF_ORG_NAME)..."
+            # 注意：这里假设子账户 $SUBACCOUNT_ID 位于 SG 区域所对应的全局账户和区域
+            btp create accounts/environment-instance --subaccount "$SUBACCOUNT_ID" --environment CloudFoundry --service plan --plan standard --parameters "{\"instance_name\":\"$CF_ORG_NAME\"}"
+            
+            echo "等待 120 秒，等待环境实例创建完成并变为 OK 状态..."
+            sleep 120
+            
+            # --- CF CLI 操作 (创建空间) ---
+            
+            # 重新 CF 登录并目标到新创建的 Org
+            echo "重新 CF 登录并目标到新创建的 Org ($CF_ORG_NAME)..."
+            cf login -a "$CF_API" -u "$BTP_EMAIL" -p "$BTP_PASSWORD" -o "$CF_ORG_NAME"
+            
+            # 创建同名空间
+            echo "正在创建同名空间 $CF_SPACE_NAME..."
+            cf create-space "$CF_SPACE_NAME"
+            
+            echo "✅ SG Cloud Foundry 环境实例和空间 $CF_SPACE_NAME 创建完成。"
+        fi
+
+        echo "SG 空间设置功能执行完成。目标组织/空间: $CF_ORG_NAME / $CF_SPACE_NAME。"
+
+
+  # -------------------------------------------------------------------------
+  # Job 2: US 区域空间管理 (仅当选择 US 或 ALL 时运行)
+  # -------------------------------------------------------------------------
+  manage_cf_space_us:
+    name: 'US - 检查、重建 CF 环境和创建空间'
+    runs-on: ubuntu-latest
+    environment: production
+    # 运行条件: 如果输入区域是 'US' 或 'ALL'
+    if: ${{ github.event.inputs.region == 'US' || github.event.inputs.region == 'ALL' }}
+    
+    # 注意: SG 和 US Job 默认是并行执行的
+
+    steps:
+    - name: 检出仓库代码 (可选)
+      uses: actions/checkout@v4
+      
+    - name: 安装 BTP CLI, CF CLI 和 jq
+      run: |
+        # 安装 jq 用于 JSON 解析
+        sudo apt-get update
+        sudo apt-get install -y jq
+
+        # 安装 CF CLI v8
+        echo "deb https://packages.cloudfoundry.org/debian stable main" | sudo tee /etc/apt/sources.list.d/cloudfoundry-cli.list
+        wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key | sudo apt-key add -
+        sudo apt-get update
+        sudo apt-get install -y cf8-cli
+
+        # 安装 BTP CLI
+        BTP_CLI_VERSION="3.0.0" 
+        BTP_CLI_ARCH="linux-amd64"
+        BTP_CLI_URL="https://tools.hana.ondemand.com/additional/btp-cli/$BTP_CLI_VERSION/$BTP_CLI_ARCH/btp-cli.tar.gz"
+        
+        echo "正在下载并安装 BTP CLI..."
+        curl -L $BTP_CLI_URL | sudo tar -xz -C /usr/local/bin
+        sudo chmod +x /usr/local/bin/btp
+        btp version
+        echo "BTP CLI 安装完成."
+      
+    - name: 设置 US 区域环境变量 (从远程 JSON 解析 CF_API)
+      run: |
+        # 定义远程 JSON URL
+        JSON_URL="https://raw.githubusercontent.com/yutian81/nodejs-argo-sap/main/sap-region.json"
+        REGION_KEY="US(free)"
+
+        echo "正在从 $JSON_URL 下载配置并解析 $REGION_KEY 的 CF API..."
+        CF_API=$(curl -sL "$JSON_URL" | jq -r '."'"$REGION_KEY"'".api')
+        
+        if [ -z "$CF_API" ] || [ "$CF_API" == "null" ]; then
+          echo "❌ 错误：无法解析 $REGION_KEY 对应的 CF API。"
+          exit 1
+        fi
+        
+        # 设置环境变量
+        echo "CF_API=$CF_API" >> $GITHUB_ENV
+        echo "CF_SPACE_NAME=${{ secrets.CF_SPACE_NAME_US }}" >> $GITHUB_ENV
+        echo "CF_ORG_NAME=${{ secrets.CF_ORG_NAME_US }}" >> $GITHUB_ENV
+        echo "BTP_SUBACCOUNT_ID=${{ secrets.BTP_SUBACCOUNT_ID_US }}" >> $GITHUB_ENV
+        echo "REGION=US" >> $GITHUB_ENV
+        
+        echo "当前处理区域: US"
+        echo "CF API 解析结果: $CF_API"
+
+
+    - name: 执行空间检查和环境重建逻辑 (US)
+      run: |
+        # 从环境变量中获取区域特定的变量，通用 Secrets 直接引用
+        CF_API="${{ env.CF_API }}"
+        CF_SPACE_NAME="${{ env.CF_SPACE_NAME }}"
+        SUBACCOUNT_ID="${{ env.BTP_SUBACCOUNT_ID }}"
+        CF_ORG_NAME="${{ env.CF_ORG_NAME }}"
+        BTP_GLOBAL_API="${{ secrets.BTP_GLOBAL_API }}" 
+        BTP_EMAIL="${{ secrets.EMAIL }}"               
+        BTP_PASSWORD="${{ secrets.PASSWORD }}"         
+
+        # 1. CF 登录并目标到组织，准备检查空间
+        echo "使用 CF CLI 登录 CF API ($CF_API) 并目标到 Org ($CF_ORG_NAME)..."
+        if [ -z "$CF_API" ]; then
+          echo "CF_API 变量为空，无法登录。请检查前一步骤是否成功获取 API URL。"
+          exit 1
+        fi
+        cf login -a "$CF_API" -u "$BTP_EMAIL" -p "$BTP_PASSWORD" -o "$CF_ORG_NAME"
+
+        # 2. 检查空间是否存在
+        echo "正在检查空间 $CF_SPACE_NAME 是否存在..."
+        cf space $CF_SPACE_NAME > /dev/null 2>&1
+        
+        if [ $? -eq 0 ]; then
+            echo "✅ US 空间 $CF_SPACE_NAME 已经存在。无需操作。"
+        else
+            echo "❌ US 空间 $CF_SPACE_NAME 不存在，执行删除/重建 Cloud Foundry 环境实例和空间创建流程。"
+            
+            # --- BTP CLI 操作 (删除/重建 CF 环境实例) ---
+            echo "使用 BTP CLI 登录全局账户 ($BTP_GLOBAL_API)..."
+            btp login --url "$BTP_GLOBAL_API" -u "$BTP_EMAIL" -p "$BTP_PASSWORD"
+            
+            # 目标到子账户
+            echo "目标到子账户 $SUBACCOUNT_ID..."
+            btp target --subaccount "$SUBACCOUNT_ID"
+            
+            # 禁用/删除 Cloud Foundry 环境实例 (即 Org)
+            echo "⚠️ 正在删除 Cloud Foundry 环境实例 (Org: $CF_ORG_NAME)..."
+            btp delete accounts/environment-instance --subaccount "$SUBACCOUNT_ID" --environment CloudFoundry --name "$CF_ORG_NAME" --confirm
+            
+            echo "等待 60 秒，等待环境实例删除完成..."
+            sleep 60
+            
+            # 重新创建/启用 Cloud Foundry 环境实例
+            echo "正在重新创建 Cloud Foundry 环境实例 (Org: $CF_ORG_NAME)..."
+            # 注意：这里假设子账户 $SUBACCOUNT_ID 位于 US 区域所对应的全局账户和区域
+            btp create accounts/environment-instance --subaccount "$SUBACCOUNT_ID" --environment CloudFoundry --service plan --plan standard --parameters "{\"instance_name\":\"$CF_ORG_NAME\"}"
+            
+            echo "等待 120 秒，等待环境实例创建完成并变为 OK 状态..."
+            sleep 120
+            
+            # --- CF CLI 操作 (创建空间) ---
+            
+            # 重新 CF 登录并目标到新创建的 Org
+            echo "重新 CF 登录并目标到新创建的 Org ($CF_ORG_NAME)..."
+            cf login -a "$CF_API" -u "$BTP_EMAIL" -p "$BTP_PASSWORD" -o "$CF_ORG_NAME"
+            
+            # 创建同名空间
+            echo "正在创建同名空间 $CF_SPACE_NAME..."
+            cf create-space "$CF_SPACE_NAME"
+            
+            echo "✅ US Cloud Foundry 环境实例和空间 $CF_SPACE_NAME 创建完成。"
+        fi
+
+        echo "US 空间设置功能执行完成。目标组织/空间: $CF_ORG_NAME / $CF_SPACE_NAME。"
