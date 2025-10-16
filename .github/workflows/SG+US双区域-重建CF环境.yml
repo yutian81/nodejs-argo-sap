@@ -48,7 +48,7 @@ jobs:
         sudo mv "$DOWNLOAD_PATH" /usr/local/bin/btp
         sudo chmod +x /usr/local/bin/btp
 
-        btp version
+        btp --version
         echo "BTP CLI 安装完成."
 
     - name: 设置 SG 区域环境变量 (从远程 JSON 解析 CF_API)
@@ -178,7 +178,7 @@ jobs:
         sudo mv "$DOWNLOAD_PATH" /usr/local/bin/btp
         sudo chmod +x /usr/local/bin/btp
 
-        btp version
+        btp --version
         echo "BTP CLI 安装完成."
       
     - name: 设置 US 区域环境变量 (从远程 JSON 解析 CF_API)
