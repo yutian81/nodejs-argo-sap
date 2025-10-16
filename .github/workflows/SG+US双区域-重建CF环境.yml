@@ -41,13 +41,26 @@ jobs:
         sudo apt-get install -y cf8-cli
 
         # 安装 BTP CLI
-        BTP_CLI_VERSION="2.90.2" 
-        BTP_CLI_ARCH="linux-amd64"
-        BTP_CLI_URL="https://tools.hana.ondemand.com/additional/btp-cli/$BTP_CLI_VERSION/$BTP_CLI_ARCH/btp-cli.tar.gz"
-        
         echo "正在下载并安装 BTP CLI..."
-        curl -L $BTP_CLI_URL | sudo tar -xz -C /usr/local/bin
+        BTP_CLI_URL="https://tools.hana.ondemand.com/additional/btp-cli-linux-amd64-2.90.2.tar.gz"
+        DOWNLOAD_PATH="/tmp/$BTP_CLI_FILENAME"
+        curl -L -o "$DOWNLOAD_PATH" "$BTP_CLI_URL"
+
+        FILE_TYPE=$(file -b "$DOWNLOAD_PATH")
+        if [[ "$FILE_TYPE" != *"gzip compressed data"* ]]; then
+            echo "❌ 错误：下载的文件不是有效的 gzip 压缩包，文件类型是: $FILE_TYPE"
+            echo "请确认 BTP CLI URL ($BTP_CLI_URL) 是否正确且可公开访问。"
+            exit 1
+        fi
+        
+        echo "✅ 文件类型校验通过，开始解压和安装..."
+        EXTRACT_DIR="/tmp/btp-extract-$BTP_CLI_VERSION"
+        mkdir -p "$EXTRACT_DIR"
+        tar -xzf "$DOWNLOAD_PATH" -C "$EXTRACT_DIR"
+        sudo mv "$EXTRACT_DIR/linux-amd64/btp" /usr/local/bin/btp
         sudo chmod +x /usr/local/bin/btp
+        rm -rf "$EXTRACT_DIR"
+
         btp version
         echo "BTP CLI 安装完成."
 
@@ -171,13 +184,26 @@ jobs:
         sudo apt-get install -y cf8-cli
 
         # 安装 BTP CLI
-        BTP_CLI_VERSION="2.90.2" 
-        BTP_CLI_ARCH="linux-amd64"
-        BTP_CLI_URL="https://tools.hana.ondemand.com/additional/btp-cli-$BTP_CLI_ARCH-$BTP_CLI_VERSION.tar.gz"
-                
         echo "正在下载并安装 BTP CLI..."
-        curl -L $BTP_CLI_URL | sudo tar -xz -C /usr/local/bin
+        BTP_CLI_URL="https://tools.hana.ondemand.com/additional/btp-cli-linux-amd64-2.90.2.tar.gz"
+        DOWNLOAD_PATH="/tmp/$BTP_CLI_FILENAME"
+        curl -L -o "$DOWNLOAD_PATH" "$BTP_CLI_URL"
+
+        FILE_TYPE=$(file -b "$DOWNLOAD_PATH")
+        if [[ "$FILE_TYPE" != *"gzip compressed data"* ]]; then
+            echo "❌ 错误：下载的文件不是有效的 gzip 压缩包，文件类型是: $FILE_TYPE"
+            echo "请确认 BTP CLI URL ($BTP_CLI_URL) 是否正确且可公开访问。"
+            exit 1
+        fi
+        
+        echo "✅ 文件类型校验通过，开始解压和安装..."
+        EXTRACT_DIR="/tmp/btp-extract-$BTP_CLI_VERSION"
+        mkdir -p "$EXTRACT_DIR"
+        tar -xzf "$DOWNLOAD_PATH" -C "$EXTRACT_DIR"
+        sudo mv "$EXTRACT_DIR/linux-amd64/btp" /usr/local/bin/btp
         sudo chmod +x /usr/local/bin/btp
+        rm -rf "$EXTRACT_DIR"
+
         btp version
         echo "BTP CLI 安装完成."
       
