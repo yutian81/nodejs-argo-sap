@@ -111,7 +111,7 @@ rebuild_cf_environment() {
     echo "7. 重新 CF 登录并目标到新创建的 Org ($CF_ORG)..."
     cf login -a "$CF_API" -u "$EMAIL" -p "$PASSWORD" -o "$CF_ORG" || { echo "❌ CF 登录或目标新 Org 失败"; exit 1; }
 
-    echo "8. 正在为用户 $EMAIL 分配 'Org Manager' 和 'Space Developer' 权限..."
+    echo "8. 正在为用户 $EMAIL 分配 'Org Manager' 权限..."
     cf set-org-role "$EMAIL" "$CF_ORG" OrgManager || { echo "❌ 分配 Org Manager 失败"; exit 1; }
 
     echo "9. 正在创建空间 $CF_SPACE..."
