@@ -149,8 +149,8 @@ if cf target -o "$CF_ORG" > /dev/null 2>&1; then
         echo "✅ ${REGION_CODE} 空间 $CF_SPACE 已经存在。无需操作。"
     else
         echo "❌ ${REGION_CODE} 空间 $CF_SPACE 不存在，尝试创建空间..."
-        # 目标到 Org
         cf target -o "$CF_ORG"
+        cf set-org-role "$EMAIL" "$CF_ORG" OrgManager || { echo "❌ 分配 Org Manager 失败。请检查用户是否已被添加到CF Org。"; exit 1; }
         
         # 尝试创建同名空间并检查结果
         if cf create-space "$CF_SPACE"; then
