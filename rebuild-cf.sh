@@ -111,8 +111,12 @@ rebuild_cf_environment() {
     echo "7. 重新 CF 登录并目标到新创建的 Org ($CF_ORG)..."
     cf login -a "$CF_API" -u "$EMAIL" -p "$PASSWORD" -o "$CF_ORG" || { echo "❌ CF 登录或目标新 Org 失败"; exit 1; }
 
-    echo "8. 正在为用户 $EMAIL 分配 'Org Manager' 权限..."
-    cf set-org-role "$EMAIL" "$CF_ORG" OrgManager || { echo "❌ 分配 Org Manager 失败"; exit 1; }
+    echo "8. 正在通过 BTP CLI 为用户 $EMAIL 分配 'Org Manager' 权限..."
+    btp assign security/role-collection "Cloud Foundry Org Manager" \
+        --user "$EMAIL" \
+        --to-resource "$BTP_ID" \
+        --resource-properties "{\"cloudControllerUrl\":\"$CF_API\",\"orgName\":\"$CF_ORG\"}" \
+        || { echo "❌ BTP CLI 分配 Org Manager 失败。请检查角色集合名称和BTP权限。"; exit 1; }
 
     echo "9. 正在创建空间 $CF_SPACE..."
     if cf create-space "$CF_SPACE"; then
@@ -150,8 +154,15 @@ if cf target -o "$CF_ORG" > /dev/null 2>&1; then
     else
         echo "❌ ${REGION_CODE} 空间 $CF_SPACE 不存在，尝试创建空间..."
         cf target -o "$CF_ORG"
-        cf set-org-role "$EMAIL" "$CF_ORG" OrgManager || { echo "❌ 分配 Org Manager 失败。请检查用户是否已被添加到CF Org。"; exit 1; }
         
+        echo "⚠️ 正在通过 BTP CLI 分配 'Org Manager' 权限以创建空间..."
+        btp target --subaccount "$BTP_ID" || { echo "❌ BTP 目标子账户失败"; exit 1; }
+        btp assign security/role-collection "Cloud Foundry Org Manager" \
+            --user "$EMAIL" \
+            --to-resource "$BTP_ID" \
+            --resource-properties "{\"cloudControllerUrl\":\"$CF_API\",\"orgName\":\"$CF_ORG\"}" \
+            || { echo "❌ BTP CLI 分配 Org Manager 失败。"; exit 1; }
+                
         # 尝试创建同名空间并检查结果
         if cf create-space "$CF_SPACE"; then
             echo "✅ ${REGION_CODE} 空间 $CF_SPACE 创建完成。"
