@@ -1,34 +1,15 @@
 #!/bin/bash
 
-# 描述: 检查、创建或重建指定区域的 BTP Cloud Foundry 环境和空间。
-# 用法: ./rebuild-cf.sh <REGION_CODE> <CF_SPACE> <CF_ORG> <BTP_ID> <BTP_GLOBAL_API> <EMAIL> <PASSWORD>
-
 # -----------------------------------------------------------------------------
-# 1. 变量解析和校验
+# 1. 参数配置
 # -----------------------------------------------------------------------------
 
-# 输入参数
-REGION_CODE="$1"
-CF_SPACE_SECRET_NAME="$2"
-CF_ORG_SECRET_NAME="$3"
-BTP_ID_SECRET_NAME="$4"
-BTP_GLOBAL_API="$5"
-EMAIL="$6"
-PASSWORD="$7"
-
-# 远程 JSON 配置
+BTP_GLOBAL_API="https://cli.btp.cloud.sap"
 JSON_URL="https://raw.githubusercontent.com/yutian81/nodejs-argo-sap/main/sap-region.json"
 REGION_KEY="${REGION_CODE}(free)"
 
-# 从 GitHub Actions 环境变量中获取 Secrets 的值
-CF_SPACE="${!CF_SPACE_SECRET_NAME}"
-CF_ORG="${!CF_ORG_SECRET_NAME}"
-BTP_ID="${!BTP_ID_SECRET_NAME}"
-
-
 if [ -z "$REGION_CODE" ] || [ -z "$CF_SPACE" ] || [ -z "$CF_ORG" ] || [ -z "$BTP_ID" ] || [ -z "$BTP_GLOBAL_API" ] || [ -z "$EMAIL" ] || [ -z "$PASSWORD" ]; then
-    echo "❌ 错误：脚本参数不完整或 Secrets 变量未设置。"
-    echo "用法: $0 <REGION_CODE> <CF_SPACE_SECRET_NAME> <CF_ORG_SECRET_NAME> <BTP_ID_SECRET_NAME> <BTP_GLOBAL_API> <EMAIL> <PASSWORD>"
+    echo "❌ 错误：脚本参数不完整或 Secrets 变量缺失。"
     exit 1
 fi
 
@@ -105,11 +86,11 @@ rebuild_cf_environment() {
     )
 
     if [ -n "$CF_INSTANCE_ID" ]; then
-        echo "   找到 CF 实例 ID: $CF_INSTANCE_ID。正在删除..."
+        echo "找到 CF 实例 ID: $CF_INSTANCE_ID。正在删除..."
         btp delete accounts/environment-instance "$CF_INSTANCE_ID" --subaccount "$BTP_ID" --confirm || true
-        echo "   CF 实例删除命令已发送。"
+        echo "CF 实例删除命令已发送。"
     else
-        echo "   未找到名称为 $CF_ORG 的 Cloud Foundry 实例，跳过删除。"
+        echo "未找到名称为 $CF_ORG 的 Cloud Foundry 实例，跳过删除。"
     fi
     
     echo "4. 等待 60 秒，等待环境实例删除完成..."
@@ -130,7 +111,10 @@ rebuild_cf_environment() {
     echo "7. 重新 CF 登录并目标到新创建的 Org ($CF_ORG)..."
     cf login -a "$CF_API" -u "$EMAIL" -p "$PASSWORD" -o "$CF_ORG" || { echo "❌ CF 登录或目标新 Org 失败"; exit 1; }
 
-    echo "8. 正在创建空间 $CF_SPACE..."
+    echo "8. 正在为用户 $EMAIL 分配 'Org Manager' 和 'Space Developer' 权限..."
+    cf set-org-role "$EMAIL" "$CF_ORG" OrgManager || { echo "❌ 分配 Org Manager 失败"; exit 1; }
+
+    echo "9. 正在创建空间 $CF_SPACE..."
     if cf create-space "$CF_SPACE"; then
         echo "✅ ${REGION_CODE} Cloud Foundry 环境实例和空间 $CF_SPACE 成功创建。"
     else
