@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 描述: 检查、创建或重建指定区域的 BTP Cloud Foundry 环境和空间。
-# 用法: ./rebuild-cf.sh <REGION_CODE> <CF_SPACE_SECRET_NAME> <CF_ORG_SECRET_NAME> <BTP_ID_SECRET_NAME> <BTP_GLOBAL_API> <EMAIL> <PASSWORD>
+# 用法: ./rebuild-cf.sh <REGION_CODE> <CF_SPACE> <CF_ORG> <BTP_ID> <BTP_GLOBAL_API> <EMAIL> <PASSWORD>
 
 # -----------------------------------------------------------------------------
 # 1. 变量解析和校验
