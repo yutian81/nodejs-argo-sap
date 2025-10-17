@@ -30,23 +30,14 @@ jobs:
 
     - name: 执行 SG 区域环境管理脚本
       env:
-        # 环境变量名称正确
-        CF_SPACE_SG: ${{ secrets.CF_SPACE_SG }}
-        CF_ORG_SG: ${{ secrets.CF_ORG_SG }}
-        BTP_ID_SG: ${{ secrets.BTP_ID_SG }}
-        BTP_GLOBAL_API: ${{ secrets.BTP_GLOBAL_API }}
+        REGION_CODE: "SG"
+        CF_SPACE: ${{ secrets.CF_SPACE_SG }}
+        CF_ORG: ${{ secrets.CF_ORG_SG }}
+        BTP_ID: ${{ secrets.BTP_ID_SG }}
         EMAIL: ${{ secrets.EMAIL }}
         PASSWORD: ${{ secrets.PASSWORD }}
       run: |
-        # 脚本调用和参数传递正确
-        ./rebuild-cf.sh \
-          "SG" \
-          "CF_SPACE_SG" \
-          "CF_ORG_SG" \
-          "BTP_ID_SG" \
-          "${{ secrets.BTP_GLOBAL_API }}" \
-          "${{ secrets.EMAIL }}" \
-          "${{ secrets.PASSWORD }}"
+        ./rebuild-cf.sh
 
   # Job 2: US 区域
   manage_cf_space_us:
@@ -64,20 +55,11 @@ jobs:
       
     - name: 执行 US 区域环境管理脚本
       env:
-        # 环境变量名称正确
-        CF_SPACE_US: ${{ secrets.CF_SPACE_US }}
-        CF_ORG_US: ${{ secrets.CF_ORG_US }}
-        BTP_ID_US: ${{ secrets.BTP_ID_US }}
-        BTP_GLOBAL_API: ${{ secrets.BTP_GLOBAL_API }}
+        REGION_CODE: "US"
+        CF_SPACE: ${{ secrets.CF_SPACE_US }}
+        CF_ORG: ${{ secrets.CF_ORG_US }}
+        BTP_ID: ${{ secrets.BTP_ID_US }}
         EMAIL: ${{ secrets.EMAIL }}
         PASSWORD: ${{ secrets.PASSWORD }}
       run: |
-        # 脚本调用和参数传递正确
-        ./rebuild-cf.sh \
-          "US" \
-          "CF_SPACE_US" \
-          "CF_ORG_US" \
-          "BTP_ID_US" \
-          "${{ secrets.BTP_GLOBAL_API }}" \
-          "${{ secrets.EMAIL }}" \
-          "${{ secrets.PASSWORD }}"
+        ./rebuild-cf.sh
